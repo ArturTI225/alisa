@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Rezervă un meșter{% endblock %}
+{% block content %}
+<div class="section card glass split-hero">
+    <div>
+        <div class="badge">Rezervare nouă</div>
+        <h1>Completează cererea în 3 pași</h1>
+        <ol class="stepper-modern">
+            <li class="active">Serviciu & prestator</li>
+            <li class="active">Descriere + adresă</li>
+            <li class="active">Confirmare</li>
+        </ol>
+        <p class="muted">Selectezi serviciul, adaugi adresa și intervalul, iar noi sugerăm un prestator disponibil.</p>
+        <div class="pill-row">
+            <span class="chip chip-ghost">Status live</span>
+            <span class="chip chip-ghost">Chat + atașamente</span>
+            <span class="chip chip-ghost">Plată & dispute integrate</span>
+        </div>
+    </div>
+    <div>
+        <form method="post" class="glass-lite" style="padding:16px;border-radius:14px;">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="actions-row" style="margin-top:10px;">
+                <button class="btn-primary" type="submit">Trimite cererea</button>
+                <a class="btn-secondary" href="/bookings/">Înapoi</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

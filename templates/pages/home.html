@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Sot la ora | Gaseste un mester verificat{% endblock %}
+{% block content %}
+
+<section class="card glass hero-light pattern-tools pattern-parallax hero-spotlight">
+    <div class="hero-grid">
+        <div class="hero-copy">
+            <div class="badge badge-glow">Rapid, sigur, social</div>
+            <h1>Gaseste un mester verificat in cateva clicuri</h1>
+            <p class="muted">Publica nevoie, marcheaza „urgent”, primesti raspunsuri rapide si vorbesti direct in chat. Fara preturi publice, focus pe ajutor real.</p>
+            <div class="search-stack">
+                <div class="search-row">
+                    <input type="text" placeholder="Ce ai nevoie? (ex: electrician, montaj mobila)" />
+                    <input type="text" placeholder="Oras (ex: Chisinau)" />
+                    <a class="btn-primary" href="/bookings/new/">Gaseste mester</a>
+                </div>
+                <div class="pill-row pill-row-tight">
+                    <span class="pill"><span class="pill-dot"></span> Am nevoie urgent</span>
+                    <span class="pill"><span class="pill-dot"></span> Rating 4+</span>
+                    <span class="pill"><span class="pill-dot"></span> Mester langa mine</span>
+                </div>
+            </div>
+            <div class="hero-stats">
+                <span class="pill-tag">+24 mesteri activi</span>
+                <span class="pill-tag pill-tag-ghost">Chat securizat</span>
+                <span class="pill-tag">Recenzii bidirectionale</span>
+            </div>
+            <div class="hero-urgent-call compact">
+                <div>
+                    <div class="muted text-sm">Situatie de urgenta</div>
+                    <strong>Cheama un mester fara cont</strong>
+                </div>
+                <a class="btn-urgent" href="tel:+37300000000">Suna acum</a>
+            </div>
+        </div>
+        <div class="hero-right">
+            <div class="badge-stack-inline">
+                <div class="floating-badge badge-primary" data-asset="badge-online">
+                    <span class="badge-icon">🟢</span> +24 mesteri online
+                </div>
+                <div class="floating-badge badge-ghost" data-asset="badge-urgent">
+                    <span class="badge-icon">⚡</span> Comanda urgenta preluata
+                </div>
+                <div class="floating-badge badge-ghost glow" data-asset="badge-rating">
+                    <span class="badge-icon">★</span> 4.9 rating mediu
+                </div>
+            </div>
+            <div class="hero-panel glass spotlight-card float-slow hero-panel-separated">
+                <div class="hero-panel__header">
+                    <div class="chip chip-ghost float">+24 mesteri online</div>
+                    <div class="chip badge-urgent pulse">Urgent preluat</div>
+                </div>
+                <div class="hero-panel__card">
+                    <div class="muted text-sm">Rezervare rapida</div>
+                    <div class="hero-panel__title">Montaj mobilier</div>
+                    <div class="hero-panel__meta">
+                        <div><span class="muted">Data</span><strong>12 Mar, 14:00</strong></div>
+                        <div><span class="muted">Prestator</span><strong>Ion Popescu</strong></div>
+                    </div>
+                </div>
+                <div class="hero-floating hero-card-mini glass-lite">
+                    <div class="avatar avatar-oval float">M</div>
+                    <div>
+                        <div class="muted text-sm">Montaj mobila</div>
+                        <strong>Maria Rusu</strong>
+                        <div class="chip chip-ghost">★ 4.9</div>
+                    </div>
+                </div>
+                <div class="bubble-rating float">4.9 ★</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Anunturi urgente</div>
+            <h2>Prinde o lucrare azi</h2>
+        </div>
+        <span class="badge badge-urgent">Scroll orizontal</span>
+    </header>
+    <div class="horizontal-scroll">
+        {% for ad in urgent_ads %}
+            <div class="urgent-card glass-lite hover-tilt">
+                <div class="chip badge-urgent pulse">Urgent</div>
+                <h3>{{ ad.title }}</h3>
+                <p class="muted">{{ ad.city }}</p>
+                <div class="urgent-meta">
+                    <span>Fara buget public</span>
+                    <span class="text-amber">Azi</span>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu exista anunturi urgente acum.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Categorii populare</div>
+            <h2>Exploreaza rapid</h2>
+        </div>
+        <a class="btn-secondary" href="/services/">Vezi toate</a>
+    </header>
+    <div class="category-grid category-grid-compact">
+        {% for cat in categories %}
+            <div class="category-card glass-lite hover-up">
+                <div class="cat-icon icon-hop">🛠️</div>
+                <div>
+                    <h3>{{ cat.name }}</h3>
+                    <p class="muted">Mesteri activi si verificati</p>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Adauga categorii in admin.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Cei mai buni in oras</div>
+            <h2>Mesteri verificati</h2>
+        </div>
+        <a class="btn-secondary" href="/devino-sot-la-ora/">Devino partener</a>
+    </header>
+    <div class="provider-grid provider-grid-compact">
+        {% for provider in top_providers %}
+            <div class="provider-card glass-lite hover-tilt">
+                <div class="provider-head">
+                    <div class="avatar avatar-oval float">{{ provider.display_name|first|upper }}</div>
+                    <div>
+                        <h3>{{ provider.display_name }}</h3>
+                        <div class="chip success">Verified</div>
+                    </div>
+                    <div class="chip chip-ghost">★ {{ provider.rating_avg|default:"4.8" }} ({{ provider.rating_count|default:0 }})</div>
+                </div>
+                <div class="chips">
+                    <span class="chip">Oras: {{ provider.city|default:"-" }}</span>
+                    <span class="chip">Pro bono / social</span>
+                </div>
+                <div class="actions-row">
+                    <a class="btn-primary slim" href="/bookings/new/">Rezerva</a>
+                    <a class="btn-ghost" href="/accounts/providers/{{ provider.id }}/">Profil</a>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Adauga prestatori verificati pentru a-i evidentia aici.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Impact & siguranta</div>
+            <h2>De ce functioneaza</h2>
+        </div>
+    </header>
+    <div class="stat-grid">
+        <div class="stat-card glass-lite">
+            <div class="stat-number">4.8 ★</div>
+            <p class="muted">Rating mediu al mesterilor</p>
+        </div>
+        <div class="stat-card glass-lite">
+            <div class="stat-number">0 comisioane</div>
+            <p class="muted">Proiect social, fara costuri afisate</p>
+        </div>
+        <div class="stat-card glass-lite">
+            <div class="stat-number">+24 online</div>
+            <p class="muted">Raspuns rapid in chat</p>
+        </div>
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">3 pasi simpli</div>
+            <h2>Cum functioneaza</h2>
+        </div>
+    </header>
+    <div class="flow-grid">
+        <div class="flow-card glass-lite">
+            <div class="icon-circle">1</div>
+            <h3>Descrie task-ul</h3>
+            <p class="muted">Adaugi detalii, foto/video, alegi slotul dorit.</p>
+        </div>
+        <div class="flow-card glass-lite">
+            <div class="icon-circle">2</div>
+            <h3>Alegi mesterul</h3>
+            <p class="muted">Vezi rating 4+, distanta si raspuns rapid.</p>
+        </div>
+        <div class="flow-card glass-lite">
+            <div class="icon-circle">3</div>
+            <h3>Confirmezi si lasi review</h3>
+            <p class="muted">Chat securizat, status pe etape, recenzie bidirectionala.</p>
+        </div>
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Incredere & recenzii</div>
+            <h2>Ce spun utilizatorii</h2>
+        </div>
+        <div class="chips">
+            <span class="chip chip-ghost">Telefon verificat</span>
+            <span class="chip chip-ghost">ID verificat</span>
+            <span class="chip chip-ghost">Recenzii reale</span>
+        </div>
+    </header>
+    <div class="review-grid">
+        {% for rev in recent_reviews %}
+            <div class="trust-card glass-lite">
+                <div class="chip chip-ghost">★ {{ rev.rating }}/5</div>
+                <p>"{{ rev.comment|default:"Fara comentariu" }}"</p>
+                <p class="muted">de {{ rev.from_user.display_name }} catre {{ rev.to_user.display_name }}</p>
+            </div>
+        {% empty %}
+            <p class="muted">Nu exista recenzii recente.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Timeline real-time</div>
+            <h2>Miscari din platforma</h2>
+        </div>
+        <a class="btn-secondary" href="/bookings/">Deschide dashboard</a>
+    </header>
+    <div class="timeline-grid">
+        {% for b in recent_bookings %}
+            <div class="timeline-card glass-lite">
+                <div class="muted">{{ b.created_at|date:"d M, H:i" }}</div>
+                <strong>{{ b.service }}</strong>
+                <p class="muted">Client: {{ b.client }} — Prestator: {{ b.provider|default:"neatribuit" }}</p>
+                <div class="chip chip-ghost">Status: {{ b.get_status_display }}</div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu exista rezervari recente.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

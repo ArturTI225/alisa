@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Replica comanda #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <h1>Replică comanda #{{ booking.id }}</h1>
+    <p class="muted">Serviciu: {{ booking.service }} · Adresă: {{ booking.address }}</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions-row">
+            <button class="btn-primary" type="submit">Creează noua rezervare</button>
+            <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Înapoi</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

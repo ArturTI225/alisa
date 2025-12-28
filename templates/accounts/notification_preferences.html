@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Preferințe notificări{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <h1>Preferințe notificări</h1>
+    <p class="muted">Controlează ce notificări primești în aplicație.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions-row">
+            <button class="btn-primary" type="submit">Salvează</button>
+            <a class="btn-secondary" href="/accounts/notifications/">Înapoi</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

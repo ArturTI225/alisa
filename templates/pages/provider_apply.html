@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Devino sot la ora{% endblock %}
+{% block content %}
+<div class="section provider-hero glass">
+    <div>
+        <div class="badge">Colaborare</div>
+        <h1>Devino \"sot la ora\"</h1>
+        <p>Primeste cereri verificate, calendar clar si suport sigur. Alatura-te retelei noastre de mesteri si contribuie la impact social, fara focus pe venit.</p>
+        <div class="chips">
+            <span class="chip">Program flexibil</span>
+            <span class="chip">Clienti verificati</span>
+            <span class="chip">Impact social</span>
+        </div>
+        <div class="pill-row">
+            <span class="pill glass-lite">+180 prestatori</span>
+            <span class="pill glass-lite">Rating mediu 4.9</span>
+            <span class="pill glass-lite">Zero comisioane</span>
+        </div>
+        <div class="hero-cta" style="margin-top:12px;">
+            <a class="btn-primary" href="/accounts/signup/">Aplica acum</a>
+            <button class="btn-secondary" type="button" data-open-modal="#demo-modal">Rezerva demo call</button>
+        </div>
+    </div>
+    <div class="card glass-lite">
+        <h3>Ce primesti</h3>
+        <ul>
+            <li>Dashboard cu comenzi noi si calendar.</li>
+            <li>Chat cu clientii si atasamente foto.</li>
+            <li>Rating si recenzii publice.</li>
+            <li>Suport de la echipa noastra pentru cauze sociale.</li>
+        </ul>
+    </div>
+</div>
+
+<div class="modal" id="demo-modal">
+    <div class="modal-content">
+        <button class="modal-close" data-close-modal>&times;</button>
+        <h3>Programeaza un demo call</h3>
+        <p class="muted">Iti aratam cum functioneaza dashboard-ul de prestator in 15 minute.</p>
+        <form class="modal-form">
+            <label>Nume</label>
+            <input type="text" placeholder="Nume si prenume">
+            <label>Email</label>
+            <input type="email" placeholder="email@example.com">
+            <label>Data preferata</label>
+            <input type="date">
+            <div class="hero-cta" style="margin-top:10px;">
+                <button class="btn-secondary" type="button" data-close-modal>Anuleaza</button>
+                <button class="btn-primary" type="button" data-loader-target="#page-loader">Trimite</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

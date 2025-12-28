@@ -1,0 +1,58 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --primary: #06a04a;
+  --primary-mint: #21ca73;
+  --urgent: #f6a623;
+  --urgent-alt: #efa73f;
+  --text: #10131a;
+  --text-muted: #7a808a;
+  --line: #e5e8ef;
+  --shadow: 0 20px 70px rgba(16, 19, 26, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at 8% 20%, rgba(33, 202, 115, 0.08), transparent 25%),
+    radial-gradient(circle at 92% 10%, rgba(246, 167, 35, 0.12), transparent 22%),
+    linear-gradient(180deg, var(--bg), #eef2f6 30%, var(--bg) 70%);
+  color: var(--text);
+}
+
+.hero-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='160' height='160' viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2310131a' fill-opacity='0.06'%3E%3Cpath d='M10 25h30v6H10zM90 35h20v6H90zM45 95h25v6H45zM120 110h18v6h-18z'/%3E%3Ccircle cx='22' cy='120' r='8'/%3E%3Ccircle cx='130' cy='40' r='6'/%3E%3Crect x='70' y='60' width='12' height='30' rx='2'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 220px;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.badge-urgent {
+  background: linear-gradient(135deg, var(--urgent), var(--urgent-alt));
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+}

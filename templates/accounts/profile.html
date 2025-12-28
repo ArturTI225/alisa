@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Profilul meu{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <div class="section-header">
+        <div>
+            <p class="muted">Profil</p>
+            <h1>Bun venit, {{ user.display_name }}</h1>
+            <p class="muted">Rol: {{ user.get_role_display }} | Telefon: {{ user.phone|default:"-" }} | Oraș: {{ user.city|default:"-" }}</p>
+        </div>
+        <div class="pill-row">
+            <span class="chip chip-ghost">Comenzi: {{ bookings_count }}</span>
+            <span class="chip chip-ghost">Favorite servicii: {{ favorite_services|length }}</span>
+            <span class="chip chip-ghost">Favorite prestatori: {{ favorite_providers|length }}</span>
+        </div>
+    </div>
+    {% if profile %}
+        <div class="glass-lite" style="padding:12px;border-radius:12px;">
+            <h3>Profil prestator</h3>
+            <p>Status verificare: {{ profile.get_verification_status_display }}</p>
+            <p>Tarif: proiect social (fără costuri publice)</p>
+            <p>Competențe: {% for skill in profile.skills.all %}{{ skill.name }}{% if not forloop.last %}, {% endif %}{% empty %}Completează competențele în admin.{% endfor %}</p>
+        </div>
+    {% endif %}
+
+    <h3>Adrese salvate</h3>
+    <div class="service-grid">
+        {% for address in addresses %}
+            <div class="service-card glass">
+                <h4>{{ address.label }}</h4>
+                <p class="muted">{{ address.city }}, {{ address.street }}</p>
+                {% if address.details %}<p class="muted">{{ address.details }}</p>{% endif %}
+            </div>
+        {% empty %}
+            <p class="muted">Nu ai adrese încă. Adaugă una în timpul rezervării.</p>
+        {% endfor %}
+    </div>
+
+    <h3>Favorite</h3>
+    <div class="service-grid">
+        {% for fav in favorite_services %}
+            <div class="service-card glass">
+                <h4>{{ fav.service.name }}</h4>
+                <p class="muted">fără costuri afișate</p>
+            </div>
+        {% empty %}
+            <p class="muted">Niciun serviciu favorit.</p>
+        {% endfor %}
+    </div>
+    <div class="provider-grid">
+        {% for fav in favorite_providers %}
+            <div class="provider-card glass">
+                <h4>{{ fav.provider.display_name }}</h4>
+                <a class="btn-ghost" href="/accounts/providers/{{ fav.provider.id }}/">Profil</a>
+            </div>
+        {% empty %}
+            <p class="muted">Niciun prestator favorit.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

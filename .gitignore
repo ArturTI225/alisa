@@ -1,0 +1,36 @@
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.log
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+
+# Node / Next.js
+node_modules/
+.next/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.turbo/
+.vercel/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+

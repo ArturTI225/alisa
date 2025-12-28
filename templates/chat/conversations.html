@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Conversații{% endblock %}
+{% block content %}
+<div class="section card">
+    <div class="list-hero">
+        <div>
+            <p class="muted">Chat</p>
+            <h1>Conversațiile tale</h1>
+        </div>
+    </div>
+    {% if conversations %}
+        <div class="booking-grid">
+            {% for convo in conversations %}
+                <div class="booking-card" data-status="">
+                    <div class="booking-card__top">
+                        <div class="muted">#{{ convo.id }}</div>
+                        {% if convo.ad and convo.ad.is_urgent %}
+                            <span class="chip chip-ghost">Anunț urgent</span>
+                        {% endif %}
+                    </div>
+                    <h3>
+                        {% if convo.ad %}{{ convo.ad.title }}{% elif convo.booking %}Booking #{{ convo.booking.id }}{% else %}Conversație{% endif %}
+                    </h3>
+                    <div class="summary-row">
+                        <span class="label">Participanți</span>
+                        <span>
+                            {% for u in convo.participants.all %}
+                                {{ u.display_name }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Creat</span>
+                        <span>{{ convo.created_at|date:"d M H:i" }}</span>
+                    </div>
+                    <div class="actions-row">
+                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' convo.id %}">Deschide</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">Nu ai conversații încă.</p>
+    {% endif %}
+</div>
+{% endblock %}

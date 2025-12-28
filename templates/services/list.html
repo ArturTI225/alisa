@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Servicii{% endblock %}
+{% block content %}
+<section class="section card glass split-hero">
+    <div>
+        <div class="badge">Catalog servicii</div>
+        <h1>Alege rapid serviciul potrivit</h1>
+        <p class="muted">Filtrezi după categorie și oraș, iar rezervarea rămâne la un click distanță.</p>
+        <div class="pill-row">
+            <span class="chip chip-ghost">Instalații</span>
+            <span class="chip chip-ghost">Electrică</span>
+            <span class="chip chip-ghost">Curățenie</span>
+            <span class="chip chip-ghost">Mobilier</span>
+        </div>
+    </div>
+    <form method="get" class="filters-bar">
+        <div class="field">
+            <label class="label">Categorie</label>
+            <select name="category">
+                <option value="">Toate categoriile</option>
+                {% for category in categories %}
+                    <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label class="label">Oraș</label>
+            <input type="text" name="city" placeholder="București" value="{{ request.GET.city }}">
+        </div>
+        <button class="btn-primary" type="submit">Filtrează</button>
+    </form>
+</section>
+
+<section class="section">
+    <div class="service-grid">
+        {% for service in services %}
+            <div class="service-card glass hover-tilt" data-tilt data-animate="cascade">
+                <div class="chip chip-ghost">{{ service.category.name }}</div>
+                <h3>{{ service.name }}</h3>
+                <p>{{ service.description|truncatewords:22 }}</p>
+                <div class="service-meta">
+                    <span class="chip status-confirmed">Proiect social (fără cost afișat)</span>
+                </div>
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Durată: {{ service.duration_estimate_minutes }} min</span>
+                </div>
+                <div class="actions-row">
+                    <a class="btn-primary slim" href="/bookings/new/">Rezervă</a>
+                    {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'accounts:favorite_toggle' 'service' service.id %}">
+                        {% csrf_token %}
+                        <button class="btn-ghost" type="submit">❤ Favorite</button>
+                    </form>
+                    {% else %}
+                    <a class="btn-ghost" href="/accounts/login/">Login pentru favorite</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="card glass empty-state">
+                <h3>Nu există servicii încă</h3>
+                <p class="muted">Adaugă servicii din admin pentru a le afișa aici sau încarcă fixture-ul de demo.</p>
+                <a class="btn-primary" href="/admin/services/service/add/">Adaugă serviciu</a>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="load-more-row">
+        {% if page_obj.has_previous %}
+            <a class="btn-secondary" href="?page={{ page_obj.previous_page_number }}&category={{ request.GET.category }}&city={{ request.GET.city }}">« Înapoi</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+            <a class="btn-primary" href="?page={{ page_obj.next_page_number }}&category={{ request.GET.category }}&city={{ request.GET.city }}">Încarcă mai mult</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

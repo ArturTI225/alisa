@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Comenzile mele{% endblock %}
+{% block content %}
+<div class="section">
+    <div class="list-hero">
+        <div>
+            <p class="muted">Rezervările tale</p>
+            <h1>Comenzile mele</h1>
+            <div class="pill-row">
+                <span class="stat-pill">Total: {{ bookings|length }}</span>
+                <span class="chip chip-ghost">Filtre inteligente</span>
+            </div>
+        </div>
+        <div class="actions-row">
+            <a class="btn-primary" href="/bookings/new/">Rezervă</a>
+        </div>
+    </div>
+
+    {% if bookings %}
+        <div class="filters-bar">
+            <div class="field">
+                <label for="booking-search" class="label">Caută</label>
+                <input id="booking-search" type="search" placeholder="serviciu, prestator sau adresă">
+            </div>
+            <div class="field">
+                <label for="booking-sort" class="label">Sortare</label>
+                <select id="booking-sort">
+                    <option value="desc">Cele mai noi</option>
+                    <option value="asc">Cele mai vechi</option>
+                </select>
+            </div>
+        </div>
+        <div class="filter-chips">
+            <button class="chip chip-filter active" data-booking-filter="all" type="button">Toate</button>
+            <button class="chip chip-filter" data-booking-filter="pending" type="button">În așteptare</button>
+            <button class="chip chip-filter" data-booking-filter="confirmed" type="button">Confirmate</button>
+            <button class="chip chip-filter" data-booking-filter="in_progress" type="button">În curs</button>
+            <button class="chip chip-filter" data-booking-filter="completed" type="button">Finalizate</button>
+            <button class="chip chip-filter" data-booking-filter="canceled" type="button">Anulate</button>
+            <button class="chip chip-filter" data-booking-filter="declined" type="button">Refuzate</button>
+            <button class="chip chip-filter" data-booking-filter="reschedule_requested" type="button">Reprogramare</button>
+        </div>
+        <div class="actions-row" style="margin:12px 0;">
+            <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">📅 Export calendar (ICS)</a>
+        </div>
+        <div class="booking-grid">
+            {% for booking in bookings %}
+                <div class="booking-card status-{{ booking.status }}" data-tilt data-status="{{ booking.status }}" data-date="{{ booking.scheduled_start|date:"c" }}" data-search="{{ booking.service }} {{ booking.provider|default:"" }} {{ booking.address }}">
+                    <div class="booking-card__top">
+                        <div class="muted">#{{ booking.id }}</div>
+                        <span class="chip status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                        {% if booking.is_urgent %}
+                            <span class="chip chip-ghost">Urgent: {{ booking.get_urgency_level_display }}</span>
+                        {% endif %}
+                    </div>
+                    <h3>{{ booking.service }}</h3>
+                    <div class="summary-row">
+                        <span class="label">Data</span>
+                        <span>{{ booking.scheduled_start|date:"d M H:i" }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Prestator</span>
+                        <span>{{ booking.provider|default:"-"}}
+                            {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Adresă</span>
+                        <span>{{ booking.address }}</span>
+                    </div>
+                    <div class="pill-row">
+                        <span class="chip chip-ghost">Durată: {{ booking.duration_minutes }} min</span>
+                        <span class="chip chip-ghost">Fără costuri afișate</span>
+                        {% if booking.dispute %}
+                            <span class="chip status-disputed">Disputa</span>
+                        {% endif %}
+                    </div>
+                    <div class="actions-row">
+                        <a class="btn-secondary" href="/bookings/{{ booking.id }}/">Detalii</a>
+                        <a class="btn-ghost" href="/bookings/{{ booking.id }}/reschedule/">Reprogramează</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card">
+            <h3>Nicio comandă încă</h3>
+            <p class="muted">Rezervă un prestator și urmărește starea comenzii aici.</p>
+            <a class="btn-primary" href="/bookings/new/">Începe o rezervare</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
