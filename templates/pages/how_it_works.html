@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Cum functioneaza - Sot la ora{% endblock %}
+{% block content %}
+<section class="section glass">
+    <div class="badge">Flux complet</div>
+    <h1>Cum functioneaza platforma</h1>
+    <p class="muted">Trei pasi simpli de la cerere la finalizare, cu status live si suport transparent, fara costuri afisate.</p>
+    <div class="timeline how-cards">
+        <div class="card glass-lite hover-up">
+            <div class="icon-circle">1</div>
+            <h3>1. Creezi cont si descrii problema</h3>
+            <p>Client sau prestator. Completezi datele, adaugi poze si alegi tipul serviciului.</p>
+        </div>
+        <div class="card glass-lite hover-up">
+            <div class="icon-circle">2</div>
+            <h3>2. Rezervi intervalul</h3>
+            <p>Alegi data/ora, blochezi slotul si confirmi detaliile inainte de start, fara sa afisezi sume.</p>
+        </div>
+        <div class="card glass-lite hover-up">
+            <div class="icon-circle">3</div>
+            <h3>3. Comunici si finalizezi</h3>
+            <p>Chat pe comanda, atasamente, status pe etape. Confirmi finalizarea si lasi review.</p>
+        </div>
+        <div class="card glass-lite hover-up">
+            <div class="icon-circle">4</div>
+            <h3>4. Confirmi si arhivezi</h3>
+            <p>Notificari email, arhiva de comenzi si recenzii accesibile oricand.</p>
+        </div>
+    </div>
+    <div class="hero-cta" style="margin-top:16px;">
+        <a class="btn-primary" href="/bookings/new/">Rezerva acum</a>
+        <a class="btn-secondary" href="/accounts/signup/">Devino prestator</a>
+    </div>
+</section>
+{% endblock %}

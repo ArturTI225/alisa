@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Dispute{% endblock %}
+{% block content %}
+<div class="section card glass split-hero tight">
+    <div>
+        <div class="badge">Staff</div>
+        <h1>Dispute active</h1>
+        <p class="muted">Preia, investighează și marchează rezolvate direct din dashboard.</p>
+    </div>
+    <form class="filters-bar" method="get" style="max-width:520px;">
+        <div class="field">
+            <label class="label">Status</label>
+            <select name="status">
+                <option value="">Toate</option>
+                <option value="open" {% if status_filter == "open" %}selected{% endif %}>Deschise</option>
+                <option value="resolved" {% if status_filter == "resolved" %}selected{% endif %}>Rezolvate</option>
+            </select>
+        </div>
+        <div class="field">
+            <label class="label">Caută</label>
+            <input name="q" value="{{ search }}" placeholder="booking id sau motiv">
+        </div>
+        <div class="actions-row">
+            <button class="btn-primary" type="submit">Filtrează</button>
+        </div>
+    </form>
+</div>
+
+<div class="section card glass">
+    <div class="deck-grid">
+        {% for dispute in disputes %}
+            <div class="card-neo">
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Booking #{{ dispute.booking.id }}</span>
+                    <span class="chip status-{{ dispute.status }}">{{ dispute.get_status_display }}</span>
+                </div>
+                <h3>{{ dispute.reason|default:"Fără motiv" }}</h3>
+                <p class="muted">Client: {{ dispute.booking.client.display_name }} · Prestator: {{ dispute.booking.provider|default:"-" }}</p>
+                <div class="pill-row">
+                    {% if dispute.assigned_to %}<span class="chip chip-ghost">Asignat: {{ dispute.assigned_to }}</span>{% endif %}
+                    {% if dispute.escalated_at %}<span class="chip chip-ghost">Escalat: {{ dispute.escalated_at|date:"d M H:i" }}</span>{% endif %}
+                </div>
+                <div class="actions-row">
+                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi comanda</a>
+                    {% if dispute.status == 'open' %}
+                        <form method="post" action="{% url 'bookings:dispute_assign' dispute.booking.id %}">
+                            {% csrf_token %}
+                            <button class="btn-primary slim" type="submit">Preia disputa</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu există dispute pentru filtrul curent.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

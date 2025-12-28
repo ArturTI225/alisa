@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Serii recurente{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <div class="section-header">
+        <div>
+            <p class="muted">Rezervări recurente</p>
+            <h1>Seriile tale</h1>
+        </div>
+        <div class="actions-row">
+            <a class="btn-primary" href="{% url 'bookings:recurring_create' %}">Creează serie</a>
+            <a class="btn-ghost" href="{% url 'bookings:list' %}">Înapoi la comenzi</a>
+        </div>
+    </div>
+    <div class="deck-grid">
+        {% for rule in rules %}
+            <div class="card-neo">
+                <div class="pill-row">
+                    <span class="chip chip-ghost">{{ rule.get_frequency_display }}</span>
+                    <span class="chip {% if rule.is_active %}status-confirmed{% else %}chip-ghost{% endif %}">{{ rule.is_active|yesno:"Activă,Oprită" }}</span>
+                </div>
+                <h3>{{ rule.service }}</h3>
+                <p class="muted">Start: {{ rule.start_date }} {{ rule.start_time }} · Durată: {{ rule.duration_minutes }} min</p>
+                <p class="muted">Adresă: {{ rule.address }}</p>
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Oc: {{ rule.occurrences }}</span>
+                    {% if rule.provider %}<span class="chip chip-ghost">Prestator: {{ rule.provider }}</span>{% endif %}
+                </div>
+                <div class="actions-row">
+                    {% if rule.is_active %}
+                        <form method="post" action="{% url 'bookings:recurring_cancel' rule.id %}">{% csrf_token %}<button class="btn-secondary" type="submit">Oprește</button></form>
+                        <form method="post" action="{% url 'bookings:recurring_next' rule.id %}">{% csrf_token %}<button class="btn-ghost" type="submit">Generează următoarea</button></form>
+                        <form method="post" action="{% url 'bookings:recurring_skip' rule.id %}">{% csrf_token %}<button class="btn-ghost-danger" type="submit">Sari peste următoarea</button></form>
+                    {% else %}
+                        <span class="muted">Seria este oprită.</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu ai serii recurente încă.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

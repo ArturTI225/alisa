@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Autentificare{% endblock %}
+{% block content %}
+<div class="section card">
+    <h1>Autentificare</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn-primary" type="submit">Intră în cont</button>
+    </form>
+    <p>Nu ai cont? <a href="/accounts/signup/">Creează-l aici</a></p>
+</div>
+{% endblock %}

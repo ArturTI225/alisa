@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Notificări{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <div class="section-header">
+        <div>
+            <p class="muted">Inbox</p>
+            <h1>Notificările tale</h1>
+        </div>
+        <div class="actions-row">
+            <form method="post" action="{% url 'accounts:notifications_mark_all' %}">
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Marchează tot citit</button>
+            </form>
+            <a class="btn-ghost" href="{% url 'accounts:notification_preferences' %}">Preferințe</a>
+        </div>
+    </div>
+    <div class="notif-list">
+        {% for notif in notifications %}
+            <div class="notif-item {% if not notif.is_read %}unread{% endif %}">
+                <strong>{{ notif.title }}</strong>
+                <p>{{ notif.body }}</p>
+                <p class="muted">{{ notif.created_at|date:"d M Y H:i" }}</p>
+                {% if notif.link %}
+                    <a class="btn-ghost" href="{{ notif.link }}">Deschide</a>
+                {% endif %}
+            </div>
+        {% empty %}
+            <p class="muted">Nu ai notificări.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Reprogramează comanda #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="section card form-layout">
+    <div class="form-side">
+        <p class="muted">Comanda #{{ booking.id }}</p>
+        <h1>Propune reprogramare</h1>
+        <div class="summary-box">
+            <div class="summary-row">
+                <span class="label">Serviciu</span>
+                <span>{{ booking.service }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Data curentă</span>
+                <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Durată</span>
+                <span>{{ booking.duration_minutes }} min</span>
+            </div>
+            <p class="muted">Propune o nouă dată/ora. Ne asigurăm că prestatorul este liber.</p>
+        </div>
+    </div>
+    <div class="form-main">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Trimite solicitarea</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Renunță</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

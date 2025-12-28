@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sot la ora{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+    <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body>
+    <div class="page-transition"></div>
+    <div class="loader-overlay" id="page-loader">
+        <div id="loader-lottie"></div>
+    </div>
+    <header class="top-nav">
+        <div class="brand">
+            <a href="/" class="logo">Sot la ora</a>
+        </div>
+        <nav>
+            <a href="/">Acasa</a>
+            <a href="/services/">Servicii</a>
+            <a href="/cum-functioneaza/">Cum functioneaza</a>
+            <a href="/devino-sot-la-ora/">Devino sot la ora</a>
+            <a href="/bookings/new/" class="cta">Rezerva</a>
+            {% if user.is_authenticated %}
+                <a href="/bookings/">Comenzile mele</a>
+                {% if user.is_provider %}<a href="/bookings/provider/dashboard/">Dashboard prestator</a>{% endif %}
+                <a href="/accounts/favorites/">Favorite</a>
+                <a href="/accounts/notifications/">Notificări</a>
+                {% if user.is_staff %}<a href="/bookings/disputes/">Dispute</a>{% endif %}
+                <a href="/accounts/profile/">Profil</a>
+                <a href="/accounts/logout/">Logout</a>
+            {% else %}
+                <a href="/accounts/login/">Login</a>
+                <a href="/accounts/signup/" class="cta">Creeaza cont</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main class="page">
+        {% if messages %}
+            <div class="flash-container">
+                {% for message in messages %}
+                    <div class="alert {{ message.tags }}">
+                        {{ message }}
+                        <button class="alert-close" type="button" aria-label="Close">&times;</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="notif-bell" id="notif-bell">
+            <div class="bell-icon">🔔</div>
+            <div class="notif-count" id="notif-count" style="display:none;"></div>
+            <div class="notif-panel glass" id="notif-panel">
+                <div class="notif-header">
+                    <strong>Notificări</strong>
+                    <a href="#" id="notif-mark-all">Marchează citit</a>
+                </div>
+                <div id="notif-list" class="notif-list"></div>
+            </div>
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+        <div>© {% now "Y" %} Sot la ora – ajutor rapid pentru casa ta.</div>
+    </footer>
+</body>
+</html>

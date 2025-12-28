@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Rezervare recurentă{% endblock %}
+{% block content %}
+<div class="section card glass split-hero">
+    <div>
+        <div class="badge">Serie recurentă</div>
+        <h1>Programează serviciul tău preferat să revină automat</h1>
+        <p class="muted">Setează frecvența (săptămânal/bilunar/lunar), data și ora, iar noi generăm rezervările.</p>
+        <div class="pill-row">
+            <span class="chip chip-ghost">Status live & notificări</span>
+            <span class="chip chip-ghost">Poți opri/skip oricând</span>
+        </div>
+    </div>
+    <div class="glass-lite" style="padding:16px;border-radius:14px;">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Creează seria</button>
+                <a class="btn-secondary" href="{% url 'bookings:recurring_list' %}">Înapoi</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

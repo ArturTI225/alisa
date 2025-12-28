@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Dashboard prestator{% endblock %}
+{% block content %}
+<div class="section card glass split-hero tight">
+    <div>
+        <div class="badge">Dashboard prestator</div>
+        <h1>Salut, {{ user.display_name }}</h1>
+        <p class="muted">Rezervările viitoare, dispute și seriile recurente la care ești asignat.</p>
+    </div>
+    <div class="pill-row">
+        <span class="chip chip-ghost">Gestionare rapidă</span>
+        <a class="btn-primary" href="/bookings/">Comenzile mele</a>
+        <span class="chip chip-ghost">Proiect social (fără venituri)</span>
+    </div>
+</div>
+
+<div class="section card glass">
+    <div class="deck-grid">
+        <div class="card-neo">
+            <div class="badge-soft">Comenzi ultimele 30 zile</div>
+            <h2>{{ provider_stats.total_30d }}</h2>
+            <p class="muted">Finalizate: {{ provider_stats.completed_30d }} · Anulate: {{ provider_stats.canceled_30d }}</p>
+        </div>
+        <div class="card-neo">
+            <div class="badge-soft">Rată acceptare</div>
+            <h2>{{ provider_stats.accepted_rate }}%</h2>
+            <p class="muted">Confirmări în ultimele 30 zile</p>
+        </div>
+        <div class="card-neo">
+            <div class="badge-soft">Proiect social</div>
+            <h2>Fără prețuri</h2>
+            <p class="muted">Nu afișăm costuri</p>
+        </div>
+        <div class="card-neo">
+            <div class="badge-soft">Rating</div>
+            <h2>{{ provider_stats.avg_rating }}</h2>
+            <p class="muted">{{ provider_stats.reviews_count }} recenzii</p>
+        </div>
+    </div>
+</div>
+
+<div class="section card glass">
+    <div class="section-header">
+        <div><div class="badge">În lucru</div><h2>Rezervări viitoare</h2></div>
+    </div>
+    <div class="booking-grid">
+        {% for booking in upcoming %}
+            <div class="booking-card status-{{ booking.status }}">
+                <div class="booking-card__top">
+                    <div class="muted">#{{ booking.id }}</div>
+                    <span class="chip status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                </div>
+                <h3>{{ booking.service }}</h3>
+                <p class="muted">{{ booking.scheduled_start|date:"d M Y H:i" }} · {{ booking.duration_minutes }} min</p>
+                <p class="muted">Client: {{ booking.client.display_name }}</p>
+                <div class="actions-row">
+                    <a class="btn-secondary" href="/bookings/{{ booking.id }}/">Detalii</a>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu ai rezervări viitoare.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="section card glass">
+    <div class="section-header">
+        <div><div class="badge">Dispute</div><h2>Necesită atenție</h2></div>
+    </div>
+    <div class="deck-grid">
+        {% for dispute in open_disputes %}
+            <div class="card-neo">
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Booking #{{ dispute.booking.id }}</span>
+                    <span class="chip status-{{ dispute.status }}">{{ dispute.get_status_display }}</span>
+                </div>
+                <p>{{ dispute.reason|default:"Fără motiv" }}</p>
+                <p class="muted">Client: {{ dispute.booking.client.display_name }}</p>
+                <div class="actions-row">
+                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi comanda</a>
+                </div>
+            </div>
+        {% empty %}
+            <p class="muted">Nu există dispute deschise.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="section card glass">
+    <div class="section-header">
+        <div><div class="badge">Serii recurente</div><h2>Programări repetitive</h2></div>
+    </div>
+    <div class="deck-grid">
+        {% for rule in recurring_rules %}
+            <div class="card-neo">
+                <div class="pill-row">
+                    <span class="chip chip-ghost">{{ rule.get_frequency_display }}</span>
+                    <span class="chip status-{{ rule.is_active|yesno:'confirmed,canceled' }}">{{ rule.is_active|yesno:"Activă,Oprită" }}</span>
+                </div>
+                <h3>{{ rule.service }}</h3>
+                <p class="muted">{{ rule.start_date }} {{ rule.start_time }} · {{ rule.duration_minutes }} min</p>
+            </div>
+        {% empty %}
+            <p class="muted">Nu ești asignat la serii recurente.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

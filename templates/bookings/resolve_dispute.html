@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Rezolva disputa comanda #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="section card form-layout">
+    <div class="form-side">
+        <p class="muted">Comanda #{{ booking.id }}</p>
+        <h1>Rezolva disputa</h1>
+        <div class="summary-box">
+            <div class="summary-row">
+                <span class="label">Status</span>
+                <span class="chip chip-ghost">{{ booking.status }}</span>
+            </div>
+            <p class="muted">Disputa: {{ dispute.reason|default:"-" }}</p>
+        </div>
+    </div>
+    <div class="form-main">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Marcheaza rezolvata</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Inapoi</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

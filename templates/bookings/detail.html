@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Comanda #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="section card booking-hero">
+    <div class="booking-hero__top">
+        <div>
+            <p class="muted">Comanda</p>
+            <h1>#{{ booking.id }} · {{ booking.service }}</h1>
+            <div class="chips">
+                <span class="chip status-{{ booking.status }}">Status: {{ booking.get_status_display }}</span>
+                <span class="chip chip-ghost">Plata: {{ booking.get_payment_status_display }}</span>
+                <span class="chip chip-ghost">Prestator: {{ booking.provider|default:"-" }}</span>
+                {% if booking.is_urgent %}
+                    <span class="chip chip-ghost">Urgenta: {{ booking.get_urgency_level_display }}</span>
+                {% endif %}
+                {% if booking.cancel_reason %}
+                    <span class="chip chip-ghost">Motiv anulare: {{ booking.cancel_reason }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="booking-hero__summary">
+            <div class="summary-row">
+                <span class="label">Data & ora</span>
+                <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Durata estimata</span>
+                <span>{{ booking.duration_minutes }} min</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Adresa</span>
+                <span>{{ booking.address }}</span>
+            </div>
+            {% if booking.is_urgent %}
+            <div class="summary-row">
+                <span class="label">Urgenta</span>
+                <span>Urgent ({{ booking.get_urgency_level_display }})</span>
+            </div>
+            {% endif %}
+            <div class="summary-row">
+                <span class="label">Descriere</span>
+                <span>{{ booking.description }}</span>
+            </div>
+            {% if booking.accepted_at %}
+            <div class="summary-row">
+                <span class="label">Acceptata de</span>
+                <span>{{ booking.accepted_by|default:"-" }} · {{ booking.accepted_at|date:"d M Y H:i" }}</span>
+            </div>
+            {% endif %}
+            {% if booking.started_at %}
+            <div class="summary-row">
+                <span class="label">Inceputa la</span>
+                <span>{{ booking.started_at|date:"d M Y H:i" }}</span>
+            </div>
+            {% endif %}
+            {% if booking.completed_at %}
+            <div class="summary-row">
+                <span class="label">Finalizata la</span>
+                <span>{{ booking.completed_at|date:"d M Y H:i" }}</span>
+            </div>
+            {% endif %}
+            <div class="summary-row">
+                <span class="label">Costuri</span>
+                <span>Fără costuri afișate</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="booking-progress">
+        <div class="progress-header">
+            <h3>Etapele comenzii</h3>
+            <span class="muted">Vezi unde se afla cererea ta</span>
+        </div>
+        <div class="progress-meter" style="--progress:{% if booking.status == 'completed' or booking.status == 'canceled' or booking.status == 'declined' %}100{% elif booking.status == 'awaiting_client' %}90{% elif booking.status == 'in_progress' %}75{% elif booking.status == 'confirmed' %}60{% else %}30{% endif %}%">
+            <div class="progress-meter__fill"></div>
+        </div>
+        <div class="progress-steps">
+            <div class="progress-step {% if booking.status in 'pending reschedule_requested confirmed in_progress awaiting_client completed declined' %}active{% endif %} {% if booking.status in 'confirmed in_progress awaiting_client completed declined' %}done{% endif %}">
+                <div class="dot"></div>
+                <div>
+                    <div class="step-title">In asteptare</div>
+                    <div class="muted">Se asteapta confirmare</div>
+                </div>
+            </div>
+            <div class="progress-step {% if booking.status in 'confirmed in_progress awaiting_client completed declined' %}active{% endif %} {% if booking.status in 'in_progress awaiting_client completed declined' %}done{% endif %}">
+                <div class="dot"></div>
+                <div>
+                    <div class="step-title">Confirmata</div>
+                    <div class="muted">Prestatorul a acceptat</div>
+                </div>
+            </div>
+            <div class="progress-step {% if booking.status in 'in_progress awaiting_client completed' %}active{% endif %} {% if booking.status in 'awaiting_client completed' %}done{% endif %}">
+                <div class="dot"></div>
+                <div>
+                    <div class="step-title">In curs</div>
+                    <div class="muted">Lucrarea este in desfasurare</div>
+                </div>
+            </div>
+            <div class="progress-step {% if booking.status in 'awaiting_client completed' %}active{% endif %} {% if booking.status == 'completed' %}done{% endif %}">
+                <div class="dot"></div>
+                <div>
+                    <div class="step-title">Confirmare client</div>
+                    <div class="muted">Clientul confirma finalizarea</div>
+                </div>
+            </div>
+            <div class="progress-step {% if booking.status == 'completed' %}active done{% endif %}">
+                <div class="dot"></div>
+                <div>
+                    <div class="step-title">Finalizata</div>
+                    <div class="muted">Serviciul s-a incheiat</div>
+                </div>
+            </div>
+        </div>
+        {% if booking.status == 'reschedule_requested' %}
+            <p class="muted" style="margin-top:8px;">Exista o solicitare de reprogramare in asteptare.</p>
+        {% elif booking.status == 'canceled' %}
+            <p class="muted" style="margin-top:8px;">Comanda a fost anulata.</p>
+        {% elif booking.status == 'declined' %}
+            <p class="muted" style="margin-top:8px;">Comanda a fost refuzata de prestator.</p>
+        {% elif booking.status == 'awaiting_client' %}
+            <p class="muted" style="margin-top:8px;">Asteptam confirmarea clientului pentru finalizare.</p>
+        {% endif %}
+    </div>
+
+    {% if can_manage %}
+    <div class="actions-row">
+        <a class="btn-primary" href="{% url 'bookings:reschedule' booking.id %}">Propune reprogramare</a>
+        <a class="btn-secondary" href="{% url 'bookings:cancel' booking.id %}">Anuleaza comanda</a>
+        <a class="btn-ghost" href="{% url 'bookings:repeat' booking.id %}">Replică</a>
+        <a class="btn-ghost" href="{% url 'bookings:recurring_create' %}">Recurent</a>
+        <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">📅 ICS</a>
+        <a class="btn-ghost" href="{% url 'bookings:detail' booking.id %}?invoice=1">📄 Factura</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if can_provider_decide %}
+<div class="section card">
+    <h2>Confirmare prestator</h2>
+    <p class="muted">Esti asignat la aceasta cerere. Confirma sau respinge.</p>
+    <div class="actions-row">
+        <form method="post" action="{% url 'bookings:accept' booking.id %}">
+            {% csrf_token %}
+            <button class="btn-primary" type="submit">Accepta</button>
+        </form>
+        <a class="btn-secondary" href="{% url 'bookings:decline' booking.id %}">Refuza</a>
+    </div>
+</div>
+{% endif %}
+
+{% if can_start or can_complete %}
+<div class="section card">
+    <h2>Etape lucrare</h2>
+    {% if can_start %}
+        <form method="post" action="{% url 'bookings:start' booking.id %}">
+            {% csrf_token %}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Porneste lucrarea</button>
+                <span class="muted">Marcheaza comanda ca "In curs"</span>
+            </div>
+        </form>
+    {% elif can_complete %}
+        <div class="actions-row">
+        <a class="btn-primary" href="{% url 'bookings:complete' booking.id %}">Finalizeaza comanda</a>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if can_client_confirm %}
+<div class="section card">
+            <h2>Confirmare client</h2>
+            <p class="muted">Revizuiește detaliile și confirmă sau marchează disputa.</p>
+    <div class="actions-row">
+        <form method="post" action="{% url 'bookings:client_confirm' booking.id %}">
+            {% csrf_token %}
+            <button class="btn-primary" type="submit">Confirm finalizarea</button>
+        </form>
+        <form method="post" action="{% url 'bookings:client_dispute' booking.id %}">
+            {% csrf_token %}
+            <button class="btn-secondary" type="submit">Contesta</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if booking.dispute %}
+<div class="section card warning">
+    <h2>Disputa</h2>
+    <p><strong>Status:</strong> {{ booking.dispute.get_status_display }}</p>
+    <p><strong>Motiv:</strong> {{ booking.dispute.reason|default:"-" }}</p>
+    {% if booking.dispute.resolution_note %}
+        <p class="muted">Rezolvare: {{ booking.dispute.resolution_note }}</p>
+    {% endif %}
+    {% if booking.dispute.status == 'open' and can_complete %}
+        <a class="btn-primary" href="{% url 'bookings:resolve_dispute' booking.id %}">Marcheaza rezolvata</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if pending_reschedule %}
+<div class="section card warning">
+    <h2>Reprogramare in asteptare</h2>
+    <p>
+        Propusa de <strong>{{ pending_reschedule.requested_by.display_name }}</strong>
+        pentru <strong>{{ pending_reschedule.proposed_start|date:"d M Y H:i" }}</strong>
+        ({{ pending_reschedule.proposed_duration_minutes }} min)
+    </p>
+    {% if pending_reschedule.note %}
+        <p class="muted">Nota: {{ pending_reschedule.note }}</p>
+    {% endif %}
+    {% if user != pending_reschedule.requested_by %}
+        <div class="actions-row">
+            <form method="post" action="{% url 'bookings:reschedule_decision' booking.id pending_reschedule.id 'accept' %}">
+                {% csrf_token %}
+                <button class="btn-primary" type="submit">Accepta</button>
+            </form>
+            <form method="post" action="{% url 'bookings:reschedule_decision' booking.id pending_reschedule.id 'decline' %}">
+                {% csrf_token %}
+                <button class="btn-secondary" type="submit">Respinge</button>
+            </form>
+        </div>
+    {% else %}
+        <p class="muted">Asteptam confirmarea celuilalt utilizator.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if booking.dispute %}
+<div class="section card warning">
+    <div class="section-header">
+        <div>
+            <h2>Disputa</h2>
+            <p class="muted">Gestionati clarificarile pentru aceasta comanda.</p>
+        </div>
+        <span class="chip status-{{ booking.dispute.status }}">Status: {{ booking.dispute.get_status_display }}</span>
+    </div>
+    <p><strong>Motiv:</strong> {{ booking.dispute.reason|default:"-" }}</p>
+    {% if booking.dispute.resolution_note %}
+        <p class="muted">Rezolvare: {{ booking.dispute.resolution_note }}</p>
+    {% endif %}
+    {% if booking.dispute.messages.all %}
+        <div class="dispute-thread">
+            {% for msg in booking.dispute.messages.all %}
+                <div class="dispute-message">
+                    <div class="dispute-meta">
+                        <strong>{{ msg.author.display_name }}</strong>
+                        <span class="muted">{{ msg.created_at|date:"d M H:i" }}</span>
+                    </div>
+                    <div>{{ msg.text }}</div>
+                    {% if msg.attachment %}<a class="muted" href="{{ msg.attachment.url }}">Atașament</a>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if booking.dispute.status == 'open' %}
+        {% if user == booking.provider %}
+            <a class="btn-secondary" href="{% url 'bookings:resolve_dispute' booking.id %}">Marcheaza rezolvata</a>
+        {% endif %}
+        {% if user == booking.client or user == booking.provider %}
+        <form method="post" action="{% url 'bookings:dispute_message' booking.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="field">
+                <label>Mesaj</label>
+                <textarea name="text" rows="3" required></textarea>
+            </div>
+            <div class="field">
+                <label>Atașament (optional)</label>
+                <input type="file" name="attachment">
+            </div>
+            <button class="btn-primary" type="submit">Trimite mesaj</button>
+        </form>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="section card">
+    <h2>Timeline comanda</h2>
+    {% if events %}
+        <ul class="booking-timeline">
+        {% for event in events %}
+            <li class="booking-timeline__item">
+                <div class="booking-timeline__time">{{ event.created_at|date:"d M H:i" }}</div>
+                <div class="booking-timeline__body">
+                    <div class="chip chip-ghost event-{{ event.event_type|default_if_none:'generic' }}">
+                        <span class="chip-icon">
+                            {% if event.event_type == 'reschedule_requested' %}⏳{% elif event.event_type == 'reschedule_approved' %}✅{% elif event.event_type == 'reschedule_declined' %}✖{% elif event.event_type == 'canceled' %}🛑{% elif event.event_type == 'status_changed' %}🔄{% elif event.event_type == 'accepted' %}👍{% elif event.event_type == 'declined' %}🚫{% elif event.event_type == 'dispute_opened' %}⚠{% elif event.event_type == 'dispute_resolved' %}🤝{% else %}ℹ{% endif %}
+                        </span>
+                        {{ event.get_event_type_display }}
+                    </div>
+                    <div>{{ event.message }}</div>
+                    <div class="muted">de {{ event.actor|default:"sistem" }}</div>
+                </div>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">Nu exista inca evenimente.</p>
+    {% endif %}
+</div>
+
+<div class="section card glass">
+    <h2>Atașamente</h2>
+    <div class="service-grid">
+        {% for attachment in attachments %}
+            <div class="service-card glass">
+                <p class="muted">{{ attachment.created_at|date:"d M Y H:i" }} · {{ attachment.uploaded_by.display_name }}</p>
+                <p>{{ attachment.note|default:"Fără notă" }}</p>
+                <a class="btn-ghost" href="{{ attachment.file.url }}">Descarcă</a>
+            </div>
+        {% empty %}
+            <p class="muted">Niciun fișier încă.</p>
+        {% endfor %}
+    </div>
+    {% if user == booking.client or user == booking.provider %}
+    <form method="post" action="{% url 'bookings:attachment_upload' booking.id %}" enctype="multipart/form-data" style="margin-top:12px;">
+        {% csrf_token %}
+        {{ attachment_form.as_p }}
+        <button class="btn-primary" type="submit">Adaugă fișier</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+                <span class="label">Costuri</span>
+                <span>Fără costuri afișate</span>
+            </div>

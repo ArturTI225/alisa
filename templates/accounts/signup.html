@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Creeaza cont{% endblock %}
+{% block content %}
+<div class="section card">
+    <h1>Crează un cont nou</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn-primary" type="submit">Înregistrează-te</button>
+    </form>
+</div>
+{% endblock %}

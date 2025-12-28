@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: "Inter", Arial, sans-serif; padding: 24px; color: #0f172a; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .badge { padding: 6px 10px; background: #0ef0c5; color: #0b1a1c; border-radius: 8px; font-weight: 700; }
+        h1 { margin: 0 0 4px; }
+        .muted { color: #64748b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+        .total { font-size: 18px; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="badge">Factura</div>
+            <h1>Booking #{{ booking.id }}</h1>
+            <p class="muted">Data: {{ booking.created_at|date:"d M Y" }}</p>
+        </div>
+        <div>
+            <p><strong>Sot la ora</strong><br/>Platformă servicii la domiciliu</p>
+        </div>
+    </div>
+    <p><strong>Client:</strong> {{ booking.client.display_name }}</p>
+    <p><strong>Prestator:</strong> {{ booking.provider|default:"-" }}</p>
+    <p><strong>Serviciu:</strong> {{ booking.service }}</p>
+    <p><strong>Adresă:</strong> {{ booking.address }}</p>
+
+    <table>
+        <tr>
+            <th>Descriere</th>
+            <th>Valoare</th>
+        </tr>
+        <tr>
+            <td>Costuri</td>
+            <td>Fără costuri afișate</td>
+        </tr>
+        {% if booking.extra_costs %}
+            {% for key, val in booking.extra_costs.items %}
+            <tr>
+                <td>{{ key }}</td>
+                <td>{{ val }} RON</td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+        <tr>
+            <td class="total">Total</td>
+            <td class="total">Fără costuri</td>
+        </tr>
+    </table>
+</body>
+</html>

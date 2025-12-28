@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Conversație #{{ conversation.id }}{% endblock %}
+{% block content %}
+<div class="section card glass">
+    <div class="list-hero">
+        <div>
+            <p class="muted">Conversație</p>
+            <h1>#{{ conversation.id }}</h1>
+            <div class="pill-row">
+                {% if conversation.ad %}
+                    <span class="chip chip-ghost">Anunț: {{ conversation.ad.title }}</span>
+                    {% if conversation.ad.is_urgent %}<span class="chip status-pending">Urgent</span>{% endif %}
+                {% endif %}
+                {% if conversation.booking %}
+                    <span class="chip chip-ghost">Booking #{{ conversation.booking.id }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <a class="btn-secondary" href="{% url 'chat:conversation_list' %}">Înapoi</a>
+        </div>
+    </div>
+
+    <div class="messages-thread">
+        {% for msg in conversation.messages.all %}
+            <div class="message-card {% if msg.sender == user %}mine{% endif %}">
+                <div class="muted">{{ msg.sender.display_name }} · {{ msg.created_at|date:"d M H:i" }}</div>
+                <p>{{ msg.text|linebreaks }}</p>
+                {% if msg.attachment %}
+                    <a href="{{ msg.attachment.url }}" class="chip chip-ghost">Atașament</a>
+                {% endif %}
+            </div>
+        {% empty %}
+            <p class="muted">Niciun mesaj încă.</p>
+        {% endfor %}
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="glass-lite" style="margin-top:16px;padding:16px;border-radius:14px;">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions-row">
+            <button class="btn-primary" type="submit">Trimite</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

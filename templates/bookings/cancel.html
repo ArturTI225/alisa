@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Anulează comanda #{{ booking.id }}{% endblock %}
+{% block content %}
+<div class="section card form-layout danger">
+    <div class="form-side">
+        <p class="muted">Comanda #{{ booking.id }}</p>
+        <h1>Confirmă anularea</h1>
+        <div class="summary-box danger">
+            <div class="summary-row">
+                <span class="label">Serviciu</span>
+                <span>{{ booking.service }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Programată</span>
+                <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
+            </div>
+            <p class="muted">Anularea poate trimite notificări prestatorului.</p>
+        </div>
+    </div>
+    <div class="form-main">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Confirmă anularea</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Înapoi</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
