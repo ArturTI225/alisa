@@ -31,6 +31,13 @@ class Review(models.Model):
         null=True,
         blank=True,
     )
+    help_request = models.ForeignKey(
+        "bookings.HelpRequest",
+        related_name="reviews",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     from_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

@@ -1,15 +1,20 @@
 from django.utils import timezone
+from django.conf import settings
 from rest_framework import serializers
 
 from accounts.models import Address
 from accounts.serializers import AddressSerializer, UserSerializer
-from services.models import Service
-from services.serializers import ServiceSerializer
+from accounts.utils import scan_uploaded_file
+from services.models import Service, ServiceCategory
+from services.serializers import ServiceSerializer, ServiceCategorySerializer
 from .models import (
     Booking,
     BookingDispute,
     BookingEvent,
     BookingAttachment,
+    HelpRequest,
+    HelpRequestAttachment,
+    VolunteerApplication,
     DisputeMessage,
     RecurringBookingRule,
     RescheduleRequest,
@@ -32,6 +37,20 @@ class BookingAttachmentSerializer(serializers.ModelSerializer):
         model = BookingAttachment
         fields = ["id", "file", "note", "uploaded_by", "created_at"]
         read_only_fields = ["id", "uploaded_by", "created_at"]
+
+    def validate_file(self, value):
+        if not value:
+            return value
+        max_size = getattr(settings, "MAX_UPLOAD_SIZE", 0)
+        if max_size and value.size > max_size:
+            raise serializers.ValidationError("Fi?ier prea mare.")
+        allowed = getattr(settings, "ALLOWED_UPLOAD_MIME_TYPES", [])
+        content_type = getattr(value, "content_type", "")
+        if allowed and content_type and content_type not in allowed:
+            raise serializers.ValidationError("Tip fi?ier neacceptat.")
+        if scan_uploaded_file(value) is False:
+            raise serializers.ValidationError("Fi?ier respins la scanarea antivirus.")
+        return value
 
 
 class BookingDisputeSerializer(serializers.ModelSerializer):
@@ -135,14 +154,11 @@ class BookingSerializer(serializers.ModelSerializer):
             "urgency_level",
             "scheduled_start",
             "duration_minutes",
-            "price_estimated",
-            "price_final",
             "started_at",
             "completed_at",
             "client_confirmed_at",
             "client_confirmation_note",
             "status",
-            "payment_status",
             "created_at",
             "accepted_at",
             "accepted_by",
@@ -159,7 +175,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "client",
             "provider",
             "status",
-            "payment_status",
             "created_at",
             "accepted_at",
             "accepted_by",
@@ -187,10 +202,6 @@ class BookingCancelSerializer(serializers.Serializer):
     )
 
 class BookingCompleteSerializer(serializers.Serializer):
-    price_final = serializers.DecimalField(
-        max_digits=8, decimal_places=2, required=True
-    )
-    extra_costs = serializers.JSONField(required=False)
     note = serializers.CharField(
         required=False, allow_blank=True, max_length=255
     )
@@ -270,3 +281,126 @@ class RescheduleRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RescheduleRequest
         fields = ["proposed_start", "proposed_duration_minutes", "note"]
+
+
+class HelpRequestAttachmentSerializer(serializers.ModelSerializer):
+    uploaded_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = HelpRequestAttachment
+        fields = ["id", "file", "note", "uploaded_by", "created_at"]
+        read_only_fields = ["id", "uploaded_by", "created_at"]
+
+    def validate_file(self, value):
+        if not value:
+            return value
+        max_size = getattr(settings, "MAX_UPLOAD_SIZE", 0)
+        if max_size and value.size > max_size:
+            raise serializers.ValidationError("Fi?ier prea mare.")
+        allowed = getattr(settings, "ALLOWED_UPLOAD_MIME_TYPES", [])
+        content_type = getattr(value, "content_type", "")
+        if allowed and content_type and content_type not in allowed:
+            raise serializers.ValidationError("Tip fi?ier neacceptat.")
+        if scan_uploaded_file(value) is False:
+            raise serializers.ValidationError("Fi?ier respins la scanarea antivirus.")
+        return value
+
+
+class VolunteerApplicationSerializer(serializers.ModelSerializer):
+    volunteer = UserSerializer(read_only=True)
+    help_request = serializers.PrimaryKeyRelatedField(
+        queryset=HelpRequest.objects.all(), write_only=True
+    )
+
+    class Meta:
+        model = VolunteerApplication
+        fields = [
+            "id",
+            "volunteer",
+            "help_request",
+            "message",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "volunteer", "status", "created_at", "updated_at"]
+
+
+class HelpRequestSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    matched_volunteer = UserSerializer(read_only=True)
+    applications = VolunteerApplicationSerializer(many=True, read_only=True)
+    attachments = serializers.SerializerMethodField()
+    category = ServiceCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=ServiceCategory.objects.filter(is_active=True),
+        source="category",
+        write_only=True,
+    )
+
+    class Meta:
+        model = HelpRequest
+        fields = [
+            "id",
+            "title",
+            "description",
+            "category",
+            "category_id",
+            "city",
+            "region",
+            "urgency",
+            "status",
+            "matched_volunteer",
+            "accepted_at",
+            "started_at",
+            "completed_at",
+            "canceled_at",
+            "cancel_reason",
+            "is_locked",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "applications",
+            "attachments",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "matched_volunteer",
+            "accepted_at",
+            "started_at",
+            "completed_at",
+            "canceled_at",
+            "cancel_reason",
+            "is_locked",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "applications",
+            "attachments",
+        ]
+
+    def get_attachments(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        allowed = False
+        if user and user.is_authenticated:
+            if user.is_staff or user == obj.created_by or user == obj.matched_volunteer:
+                allowed = True
+        if not allowed:
+            return []
+        return HelpRequestAttachmentSerializer(obj.attachments.all(), many=True, context=self.context).data
+
+    def create(self, validated_data):
+        validated_data["created_by"] = self.context["request"].user
+        return super().create(validated_data)
+
+    def validate_title(self, value):
+        if len(value.strip()) < 5:
+            raise serializers.ValidationError("Titlul trebuie să aibă cel puțin 5 caractere.")
+        return value
+
+    def validate_description(self, value):
+        if len(value.strip()) < 10:
+            raise serializers.ValidationError("Descrierea trebuie să aibă cel puțin 10 caractere.")
+        return value

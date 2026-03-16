@@ -27,7 +27,6 @@ class OfferAdmin(admin.ModelAdmin):
         "ad",
         "craftsman",
         "status",
-        "proposed_price",
         "created_at",
     )
     list_filter = ("status",)

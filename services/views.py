@@ -40,4 +40,4 @@ class ServiceViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "description"]
-    ordering_fields = ["base_price", "duration_estimate_minutes"]
+    ordering_fields = ["duration_estimate_minutes"]

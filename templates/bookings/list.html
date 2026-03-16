@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Comenzile mele{% endblock %}
 {% block content %}
 <div class="section">
     <div class="list-hero">
         <div>
-            <p class="muted">Rezervările tale</p>
+            <p class="muted">Rezervarile tale</p>
             <h1>Comenzile mele</h1>
             <div class="pill-row">
                 <span class="stat-pill">Total: {{ bookings|length }}</span>
@@ -12,15 +12,15 @@
             </div>
         </div>
         <div class="actions-row">
-            <a class="btn-primary" href="/bookings/new/">Rezervă</a>
+            <a class="btn-primary" href="/bookings/new/">Rezerva</a>
         </div>
     </div>
 
     {% if bookings %}
         <div class="filters-bar">
             <div class="field">
-                <label for="booking-search" class="label">Caută</label>
-                <input id="booking-search" type="search" placeholder="serviciu, prestator sau adresă">
+                <label for="booking-search" class="label">Cauta</label>
+                <input id="booking-search" type="search" placeholder="serviciu, prestator sau adresa">
             </div>
             <div class="field">
                 <label for="booking-sort" class="label">Sortare</label>
@@ -32,16 +32,16 @@
         </div>
         <div class="filter-chips">
             <button class="chip chip-filter active" data-booking-filter="all" type="button">Toate</button>
-            <button class="chip chip-filter" data-booking-filter="pending" type="button">În așteptare</button>
+            <button class="chip chip-filter" data-booking-filter="pending" type="button">In asteptare</button>
             <button class="chip chip-filter" data-booking-filter="confirmed" type="button">Confirmate</button>
-            <button class="chip chip-filter" data-booking-filter="in_progress" type="button">În curs</button>
+            <button class="chip chip-filter" data-booking-filter="in_progress" type="button">In curs</button>
             <button class="chip chip-filter" data-booking-filter="completed" type="button">Finalizate</button>
             <button class="chip chip-filter" data-booking-filter="canceled" type="button">Anulate</button>
             <button class="chip chip-filter" data-booking-filter="declined" type="button">Refuzate</button>
             <button class="chip chip-filter" data-booking-filter="reschedule_requested" type="button">Reprogramare</button>
         </div>
         <div class="actions-row" style="margin:12px 0;">
-            <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">📅 Export calendar (ICS)</a>
+            <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">Export calendar (ICS)</a>
         </div>
         <div class="booking-grid">
             {% for booking in bookings %}
@@ -60,34 +60,60 @@
                     </div>
                     <div class="summary-row">
                         <span class="label">Prestator</span>
-                        <span>{{ booking.provider|default:"-"}}
+                        <span>{{ booking.provider|default:"-" }}
                             {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
                         </span>
                     </div>
                     <div class="summary-row">
-                        <span class="label">Adresă</span>
+                        <span class="label">Adresa</span>
                         <span>{{ booking.address }}</span>
                     </div>
                     <div class="pill-row">
-                        <span class="chip chip-ghost">Durată: {{ booking.duration_minutes }} min</span>
-                        <span class="chip chip-ghost">Fără costuri afișate</span>
+                        <span class="chip chip-ghost">Durata: {{ booking.duration_minutes }} min</span>
+                        <span class="chip chip-ghost">Fara costuri afisate</span>
                         {% if booking.dispute %}
                             <span class="chip status-disputed">Disputa</span>
                         {% endif %}
                     </div>
                     <div class="actions-row">
                         <a class="btn-secondary" href="/bookings/{{ booking.id }}/">Detalii</a>
-                        <a class="btn-ghost" href="/bookings/{{ booking.id }}/reschedule/">Reprogramează</a>
+                        <a class="btn-ghost" href="/bookings/{{ booking.id }}/reschedule/">Reprogrameaza</a>
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
         <div class="card">
-            <h3>Nicio comandă încă</h3>
-            <p class="muted">Rezervă un prestator și urmărește starea comenzii aici.</p>
-            <a class="btn-primary" href="/bookings/new/">Începe o rezervare</a>
+            <h3>Nicio comanda inca</h3>
+            <p class="muted">Rezerva un prestator si urmareste starea comenzii aici.</p>
+            <a class="btn-primary" href="/bookings/new/">Incepe o rezervare</a>
         </div>
+        <section class="section card glass section-slim" style="margin-top:16px;">
+            <header class="section-header">
+                <div>
+                    <div class="badge">Ghid rapid</div>
+                    <h2>Ce urmeaza dupa ce rezervi</h2>
+                </div>
+                <a class="btn-secondary" href="/services/">Vezi servicii</a>
+            </header>
+            <div class="flow-grid">
+                <div class="flow-card glass-lite">
+                    <div class="icon-circle">1</div>
+                    <h3>Confirmare</h3>
+                    <p class="muted">Primesti notificare imediat dupa trimiterea cererii.</p>
+                </div>
+                <div class="flow-card glass-lite">
+                    <div class="icon-circle">2</div>
+                    <h3>Prestator asignat</h3>
+                    <p class="muted">Alegi sau primesti un prestator disponibil.</p>
+                </div>
+                <div class="flow-card glass-lite">
+                    <div class="icon-circle">3</div>
+                    <h3>Status live</h3>
+                    <p class="muted">Urmaresti progresul pana la finalizare.</p>
+                </div>
+            </div>
+        </section>
     {% endif %}
 </div>
 {% endblock %}

@@ -1,5 +1,8 @@
 from typing import Optional
 
+from django.conf import settings
+from django.utils import timezone
+
 try:
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
@@ -8,6 +11,7 @@ except ImportError:  # channels optional
     get_channel_layer = None
 
 from .models import Notification
+from .models import AuditLog
 
 
 NOTIF_PREF_FIELD = {
@@ -38,6 +42,7 @@ def notify_user(
     body: str = "",
     link: str = "",
 ) -> Optional[Notification]:
+    notif_type = notif_type or Notification.Type.GENERAL
     pref = getattr(user, "notification_pref", None)
     pref_field = NOTIF_PREF_FIELD.get(notif_type)
     if pref and pref_field and not getattr(pref, pref_field, True):
@@ -62,3 +67,47 @@ def notify_user(
         },
     )
     return notif
+
+
+def scan_uploaded_file(uploaded_file) -> bool:
+    """
+    Basic antivirus hook. If settings.VIRUS_SCAN_HANDLER is provided,
+    it will be called with the uploaded file; returning False raises a reject.
+    The default is a no-op placeholder to allow later integration.
+    """
+    handler = getattr(settings, "VIRUS_SCAN_HANDLER", None)
+    if callable(handler):
+        return bool(handler(uploaded_file))
+    return True
+
+
+def log_audit(
+    actor,
+    action: str,
+    target_obj=None,
+    metadata: Optional[dict] = None,
+    request=None,
+):
+    """
+    Append-only audit log helper. target_obj may be a model instance.
+    """
+    target_model = ""
+    target_id = ""
+    if target_obj is not None:
+        target_model = target_obj.__class__.__name__
+        target_id = getattr(target_obj, "pk", "") or ""
+    meta = metadata or {}
+    if request is not None:
+        ip = request.META.get("REMOTE_ADDR") or ""
+        ua = request.META.get("HTTP_USER_AGENT") or ""
+        if ip:
+            meta.setdefault("ip", ip)
+        if ua:
+            meta.setdefault("user_agent", ua)
+    return AuditLog.objects.create(
+        actor=actor if getattr(actor, "id", None) else None,
+        action=action,
+        target_model=target_model,
+        target_id=str(target_id),
+        metadata=meta,
+    )

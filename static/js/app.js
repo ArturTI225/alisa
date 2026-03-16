@@ -16,82 +16,151 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Notifications dropdown (fetch via API)
-  const notifBell = document.getElementById("notif-bell");
-  const notifPanel = document.getElementById("notif-panel");
-  const notifCount = document.getElementById("notif-count");
-  const notifList = document.getElementById("notif-list");
-  const notifMarkAll = document.getElementById("notif-mark-all");
+  // Live notifications: popup + sound
+  const isAuthenticated = !!document.querySelector(".nav-user");
+  let seenNotifIds = new Set();
+  let notifsBootstrapped = false;
+  let audioUnlocked = false;
+  let audioCtx = null;
 
-  async function fetchNotifs() {
+  const unlockAudio = () => {
+    audioUnlocked = true;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !audioCtx) {
+      try {
+        audioCtx = new Ctx();
+      } catch (e) {
+        // Ignore audio init failures; visual popup still works.
+      }
+    }
+  };
+
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
+
+  const playNotificationSound = () => {
+    if (!audioUnlocked || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      gain.connect(audioCtx.destination);
+
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(920, now);
+      osc.frequency.setValueAtTime(1220, now + 0.11);
+      osc.connect(gain);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    } catch (e) {
+      // Ignore sound errors to avoid breaking page scripts.
+    }
+  };
+
+  const ensureNotifStack = () => {
+    let stack = document.getElementById("notif-live-stack");
+    if (stack) return stack;
+    stack = document.createElement("div");
+    stack.id = "notif-live-stack";
+    stack.className = "notif-live-stack";
+    document.body.appendChild(stack);
+    return stack;
+  };
+
+  const showNotificationPopup = (notif) => {
+    const stack = ensureNotifStack();
+    const popup = document.createElement("div");
+    popup.className = "notif-live-popup";
+    popup.setAttribute("role", "status");
+
+    const title = document.createElement("strong");
+    title.textContent = notif.title || "Notificare noua";
+    popup.appendChild(title);
+
+    const body = document.createElement("p");
+    body.textContent = notif.body || "";
+    popup.appendChild(body);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "notif-live-close";
+    closeBtn.setAttribute("aria-label", "Inchide");
+    closeBtn.textContent = "×";
+    popup.appendChild(closeBtn);
+
+    if (notif.link) {
+      popup.classList.add("clickable");
+      popup.addEventListener("click", (event) => {
+        const closeBtn = event.target.closest(".notif-live-close");
+        if (closeBtn) return;
+        window.location.href = notif.link;
+      });
+    }
+
+    const closePopup = () => {
+      popup.classList.add("hide");
+      setTimeout(() => popup.remove(), 200);
+    };
+
+    closeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closePopup();
+    });
+
+    stack.prepend(popup);
+    setTimeout(() => popup.classList.add("show"), 10);
+    setTimeout(closePopup, 5200);
+  };
+
+  const normalizeNotifications = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.results)) return payload.results;
+    return [];
+  };
+
+  const rememberNotifId = (id) => {
+    seenNotifIds.add(id);
+    if (seenNotifIds.size <= 300) return;
+    const trimmed = Array.from(seenNotifIds).slice(-200);
+    seenNotifIds = new Set(trimmed);
+  };
+
+  const fetchNotifsLive = async () => {
+    if (!isAuthenticated) return;
     try {
       const res = await fetch("/api/notifications/");
       if (!res.ok) return;
-      const data = await res.json();
-      notifList.innerHTML = "";
-      let unread = 0;
-      data.forEach((n) => {
-        if (!n.is_read) unread += 1;
-        const item = document.createElement("div");
-        item.className = "notif-item" + (n.is_read ? "" : " unread");
-        item.innerHTML = `<strong>${n.title}</strong><p>${n.body || ""}</p>`;
-        if (n.link) {
-          item.addEventListener("click", () => {
-            window.location.href = n.link;
-          });
-        }
-        notifList.appendChild(item);
-      });
-      if (unread > 0) {
-        notifCount.style.display = "grid";
-        notifCount.textContent = unread;
-      } else {
-        notifCount.style.display = "none";
+      const items = normalizeNotifications(await res.json());
+      const unreadItems = items.filter((n) => !n.is_read);
+
+      if (!notifsBootstrapped) {
+        unreadItems.forEach((n) => rememberNotifId(n.id));
+        notifsBootstrapped = true;
+        return;
       }
+
+      const freshUnread = unreadItems.filter((n) => !seenNotifIds.has(n.id));
+      if (!freshUnread.length) return;
+
+      freshUnread
+        .sort((a, b) => (a.id || 0) - (b.id || 0))
+        .forEach((n) => {
+          rememberNotifId(n.id);
+          showNotificationPopup(n);
+        });
+
+      playNotificationSound();
     } catch (e) {
-      console.warn("Notif fetch failed", e);
+      console.warn("Notif live fetch failed", e);
     }
-  }
+  };
 
-  notifBell?.addEventListener("click", () => {
-    if (!notifPanel) return;
-    if (notifPanel.style.display === "block") {
-      notifPanel.style.display = "none";
-      return;
-    }
-    notifPanel.style.display = "block";
-    fetchNotifs();
-  });
-
-  notifMarkAll?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/notifications/", { method: "GET" });
-      if (!res.ok) return;
-      const data = await res.json();
-      await Promise.all(
-        data.filter((n) => !n.is_read).map((n) =>
-          fetch(`/api/notifications/${n.id}/`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ is_read: true }),
-          })
-        )
-      );
-      fetchNotifs();
-    } catch (err) {
-      console.warn("Notif mark all failed", err);
-    }
-  });
-
-  // Smooth scroll with Lenis (graceful fallback)
-  if (window.Lenis) {
-    const lenis = new Lenis({ lerp: 0.08, smooth: true });
-    const raf = (time) => {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    };
-    requestAnimationFrame(raf);
+  if (isAuthenticated) {
+    fetchNotifsLive();
+    setInterval(fetchNotifsLive, 12000);
   }
 
   // Reveal fallback
@@ -298,10 +367,10 @@ document.addEventListener("DOMContentLoaded", () => {
     bookingCard?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
-  // Hero form price update
+  // Hero form info update (non-commercial)
+  if (heroPrice) heroPrice.textContent = "Ajutor voluntar";
   heroService?.addEventListener("change", () => {
-    const price = heroService.selectedOptions[0]?.dataset.price || heroService.value || "220";
-    if (heroPrice) heroPrice.textContent = `${price} lei`;
+    if (heroPrice) heroPrice.textContent = "Ajutor voluntar";
   });
 
   const counterEl = document.getElementById("orders-counter");
@@ -397,7 +466,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Booking cards reveal
     const bookingCards = document.querySelectorAll(".booking-card");
-    if (bookingCards.length) {
+    if (bookingCards.length && window.gsap && window.ScrollTrigger) {
       gsap.from(bookingCards, {
         scrollTrigger: {
           trigger: bookingCards[0].closest(".section") || bookingCards[0],
@@ -413,7 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Booking timeline items
     const timelineItems = document.querySelectorAll(".booking-timeline__item");
-    if (timelineItems.length) {
+    if (timelineItems.length && window.gsap && window.ScrollTrigger) {
       gsap.from(timelineItems, {
         scrollTrigger: {
           trigger: timelineItems[0].closest(".section") || timelineItems[0],

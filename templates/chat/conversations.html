@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Conversații{% endblock %}
+{% block title %}Conversatii{% endblock %}
 {% block content %}
 <div class="section card">
     <div class="list-hero">
         <div>
             <p class="muted">Chat</p>
-            <h1>Conversațiile tale</h1>
+            <h1>Conversatiile tale</h1>
         </div>
     </div>
     {% if conversations %}
@@ -15,14 +15,22 @@
                     <div class="booking-card__top">
                         <div class="muted">#{{ convo.id }}</div>
                         {% if convo.ad and convo.ad.is_urgent %}
-                            <span class="chip chip-ghost">Anunț urgent</span>
+                            <span class="chip chip-ghost">Anunt urgent</span>
                         {% endif %}
                     </div>
                     <h3>
-                        {% if convo.ad %}{{ convo.ad.title }}{% elif convo.booking %}Booking #{{ convo.booking.id }}{% else %}Conversație{% endif %}
+                        {% if convo.help_request %}
+                            Cerere #{{ convo.help_request.id }}: {{ convo.help_request.title }}
+                        {% elif convo.ad %}
+                            {{ convo.ad.title }}
+                        {% elif convo.booking %}
+                            Booking #{{ convo.booking.id }}
+                        {% else %}
+                            Conversatie
+                        {% endif %}
                     </h3>
                     <div class="summary-row">
-                        <span class="label">Participanți</span>
+                        <span class="label">Participanti</span>
                         <span>
                             {% for u in convo.participants.all %}
                                 {{ u.display_name }}{% if not forloop.last %}, {% endif %}
@@ -40,7 +48,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <p class="muted">Nu ai conversații încă.</p>
+        <p class="muted">Nu ai conversatii inca.</p>
     {% endif %}
 </div>
 {% endblock %}

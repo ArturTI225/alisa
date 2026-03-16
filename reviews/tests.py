@@ -32,7 +32,7 @@ class ReviewRatingTests(APITestCase):
         self.client.login(username="client", password="pass123")
 
     def test_review_updates_rating(self):
-        url = reverse("review-list")
+        url = reverse("v1:review-list")
         resp = self.client.post(
             url,
             {

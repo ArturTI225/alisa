@@ -7,7 +7,11 @@ from .models import (
     BookingAttachment,
     BookingDispute,
     BookingEvent,
+    CompletionCertificate,
+    HelpRequest,
+    HelpRequestAttachment,
     DisputeMessage,
+    VolunteerApplication,
     RescheduleRequest,
 )
 
@@ -35,11 +39,10 @@ class BookingAdmin(admin.ModelAdmin):
         "is_urgent",
         "urgency_level",
         "status",
-        "payment_status",
         "accepted_by",
         "accepted_at",
     )
-    list_filter = ("status", "payment_status", "service", "is_urgent", "urgency_level")
+    list_filter = ("status", "service", "is_urgent", "urgency_level")
     search_fields = ("client__username", "provider__username", "service__name")
 
 
@@ -81,3 +84,45 @@ class DisputeMessageAdmin(admin.ModelAdmin):
 class BookingAttachmentAdmin(admin.ModelAdmin):
     list_display = ("booking", "uploaded_by", "created_at")
     search_fields = ("booking__id", "uploaded_by__username", "note")
+
+
+@admin.register(HelpRequest)
+class HelpRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "created_by",
+        "category",
+        "city",
+        "urgency",
+        "status",
+        "matched_volunteer",
+        "created_at",
+    )
+    list_filter = ("status", "urgency", "category", "city")
+    search_fields = ("title", "description", "created_by__username")
+
+
+@admin.register(HelpRequestAttachment)
+class HelpRequestAttachmentAdmin(admin.ModelAdmin):
+    list_display = ("help_request", "uploaded_by", "created_at")
+    search_fields = ("help_request__id", "uploaded_by__username", "note")
+
+
+@admin.register(VolunteerApplication)
+class VolunteerApplicationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "help_request",
+        "volunteer",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("help_request__id", "volunteer__username", "message")
+
+
+@admin.register(CompletionCertificate)
+class CompletionCertificateAdmin(admin.ModelAdmin):
+    list_display = ("help_request", "volunteer", "issued_at")
+    search_fields = ("help_request__id", "volunteer__username", "summary")

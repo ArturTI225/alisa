@@ -8,7 +8,6 @@
             <h1>#{{ booking.id }} · {{ booking.service }}</h1>
             <div class="chips">
                 <span class="chip status-{{ booking.status }}">Status: {{ booking.get_status_display }}</span>
-                <span class="chip chip-ghost">Plata: {{ booking.get_payment_status_display }}</span>
                 <span class="chip chip-ghost">Prestator: {{ booking.provider|default:"-" }}</span>
                 {% if booking.is_urgent %}
                     <span class="chip chip-ghost">Urgenta: {{ booking.get_urgency_level_display }}</span>

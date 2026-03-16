@@ -2,13 +2,18 @@ from datetime import timedelta
 import csv
 
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models
-from django.db.models import Sum, Avg
+from django.db import transaction
+from django.db.models import Avg
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
+from django.utils.crypto import get_random_string
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views import generic, View
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -18,8 +23,13 @@ from django.conf import settings
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import APIException
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
+from django.core.cache import cache
 
-from accounts.models import User
+from accounts.models import Address, User, Badge, Notification
+from accounts.utils import notify_user, log_audit
+from services.models import Service, ServiceCategory
 from .utils_pdf import generate_pdf_from_html
 from reviews.models import Review
 from .forms import (
@@ -34,7 +44,16 @@ from .forms import (
     BookingAttachmentForm,
 )
 from .models import Availability, Booking, BookingEvent, RescheduleRequest
-from .models import BookingDispute, RecurringBookingRule, BookingAttachment
+from .models import (
+    BookingDispute,
+    RecurringBookingRule,
+    BookingAttachment,
+    HelpRequest,
+    HelpRequestAttachment,
+    CompletionCertificate,
+    VolunteerApplication,
+)
+from .storage_utils import get_signed_url
 from .serializers import (
     BookingAcceptSerializer,
     BookingCancelSerializer,
@@ -47,8 +66,75 @@ from .serializers import (
     RescheduleRequestSerializer,
     RecurringRuleCreateSerializer,
     RecurringRuleSerializer,
+    HelpRequestSerializer,
+    VolunteerApplicationSerializer,
+    HelpRequestAttachmentSerializer,
 )
-from .utils import validate_provider_slot
+from .utils import (
+    ensure_help_request_conversation,
+    ensure_booking_conversation,
+    validate_provider_slot,
+)
+
+
+class IsHelpRequestOwnerOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return request.user.is_staff or request.user == obj.created_by or request.user == getattr(
+            obj, "matched_volunteer", None
+        )
+
+
+class IdempotentMixin:
+    """
+    Simple idempotency helper using Idempotency-Key header.
+    Stores short-lived keys in cache to return the existing resource on replay.
+    """
+
+    idem_ttl = 60 * 5
+
+    def _idem_cache_key(self, scope: str, key: str) -> str:
+        return f"idem:{scope}:{key}"
+
+    def _get_cached_instance(self, model_cls, scope: str, key: str):
+        existing_id = cache.get(self._idem_cache_key(scope, key))
+        if existing_id:
+            return model_cls.objects.filter(pk=existing_id).first()
+        return None
+
+    def _remember_instance(self, instance, scope: str, key: str):
+        if not key or not instance:
+            return
+        cache.set(self._idem_cache_key(scope, key), instance.pk, timeout=self.idem_ttl)
+
+
+class ConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "Conflict cu starea curenta a resursei."
+    default_code = "conflict"
+
+
+class HelpRequestThrottle(ScopedRateThrottle):
+    scope = "help-requests"
+
+    def get_rate(self):
+        from django.conf import settings
+
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {}) if hasattr(settings, "REST_FRAMEWORK") else {}
+        return rates.get(self.scope) or super().get_rate()
+
+
+def append_help_request_history(help_request: HelpRequest, new_status: str, actor):
+    history = help_request.status_history or []
+    history.append(
+        {
+            "status": new_status,
+            "timestamp": timezone.now().isoformat(),
+            "actor": getattr(actor, "id", None),
+        }
+    )
+    help_request.status_history = history
 
 
 def find_available_provider(service, address, start, duration_minutes: int):
@@ -140,20 +226,119 @@ class BookingListView(LoginRequiredMixin, generic.ListView):
         return qs.order_by("-is_urgent", "-created_at")
 
 
-class BookingCreateView(LoginRequiredMixin, generic.CreateView):
+class BookingCreateView(generic.CreateView):
     form_class = BookingForm
     template_name = "bookings/create.html"
-    success_url = reverse_lazy("bookings:list")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_success_url(self):
+        return reverse("bookings:detail", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        categories = (
+            ServiceCategory.objects.filter(is_active=True)
+            .annotate(
+                services_count=models.Count(
+                    "services",
+                    filter=models.Q(services__is_active=True),
+                    distinct=True,
+                )
+            )
+            .order_by("-services_count", "name")
+        )
+        ctx["categories"] = categories[:10]
+        ctx["popular_services"] = (
+            Service.objects.filter(is_active=True)
+            .select_related("category")
+            .order_by("category__name", "name")[:12]
+        )
+        return ctx
+
+    def _build_guest_username(self, email: str) -> str:
+        base = slugify((email or "").split("@")[0]) or "guest"
+        base = base[:120]
+        candidate = base
+        suffix = 1
+        while User.objects.filter(username=candidate).exists():
+            suffix_text = f"-{suffix}"
+            candidate = f"{base[:150 - len(suffix_text)]}{suffix_text}"
+            suffix += 1
+        return candidate
+
+    def _create_guest_client(self, form) -> User:
+        data = form.cleaned_data
+        email = (data.get("guest_email") or "").strip().lower()
+        user = User.objects.create_user(
+            username=self._build_guest_username(email),
+            password=get_random_string(24),
+            email=email,
+            first_name=data.get("guest_first_name", "").strip(),
+            last_name=data.get("guest_last_name", "").strip(),
+            phone=data.get("guest_phone", "").strip(),
+            city=(data.get("guest_city") or data.get("address_city") or "").strip(),
+            role=User.Roles.CLIENT,
+        )
+        login(
+            self.request,
+            user,
+            backend="django.contrib.auth.backends.ModelBackend",
+        )
+        messages.success(
+            self.request,
+            "Cont de solicitant creat automat. Cererea de ajutor a fost trimisa.",
+        )
+        return user
+
+    def _resolve_address(self, form, client_user: User, authenticated_user: bool) -> Address:
+        resolved = form.cleaned_data.get("resolved_address")
+        if resolved:
+            return resolved
+        data = form.cleaned_data
+        city = (
+            data.get("address_city")
+            or data.get("guest_city")
+            or ""
+        ).strip()
+        street = (
+            data.get("address_line")
+            or data.get("guest_street")
+            or ""
+        ).strip()
+        details = (
+            data.get("address_details")
+            or data.get("guest_address_details")
+            or ""
+        ).strip()
+
+        existing = Address.objects.filter(
+            user=client_user,
+            city__iexact=city,
+            street__iexact=street,
+            details__iexact=details,
+        ).first()
+        if existing:
+            return existing
+
+        return Address.objects.create(
+            user=client_user,
+            label="Cerere rapida",
+            city=city,
+            street=street,
+            details=details,
+            is_default=not Address.objects.filter(user=client_user).exists(),
+        )
+
     def form_valid(self, form):
-        form.instance.client = self.request.user
-        if form.instance.service and not form.instance.price_estimated:
-            form.instance.price_estimated = form.instance.service.base_price
+        authenticated_user = self.request.user.is_authenticated
+        client_user = self.request.user if authenticated_user else self._create_guest_client(form)
+        form.instance.client = client_user
+        form.instance.service = form.cleaned_data["service"]
+        form.instance.address = self._resolve_address(form, client_user, authenticated_user)
         if not form.instance.provider:
             candidate = find_available_provider(
                 form.instance.service,
@@ -271,14 +456,14 @@ class BookingRescheduleView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if request.user not in [self.booking.client, self.booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta comanda.")
+            raise PermissionDenied("Nu ai acces la aceasta cerere.")
         if self.booking.status in [
             Booking.Status.CANCELED,
             Booking.Status.COMPLETED,
             Booking.Status.IN_PROGRESS,
             Booking.Status.DECLINED,
         ]:
-            messages.error(request, "Comanda nu mai poate fi reprogramata.")
+            messages.error(request, "Cererea nu mai poate fi reprogramata.")
             return redirect("bookings:detail", pk=self.booking.pk)
         return super().dispatch(request, *args, **kwargs)
 
@@ -329,13 +514,13 @@ class BookingRescheduleDecisionView(LoginRequiredMixin, generic.View):
             RescheduleRequest, pk=request_id, booking=booking
         )
         if request.user not in [booking.client, booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta comanda.")
+            raise PermissionDenied("Nu ai acces la aceasta cerere.")
         if booking.status in [
             Booking.Status.CANCELED,
             Booking.Status.COMPLETED,
             Booking.Status.DECLINED,
         ]:
-            messages.info(request, "Comanda nu mai poate fi modificata.")
+            messages.info(request, "Cererea nu mai poate fi modificata.")
             return redirect("bookings:detail", pk=pk)
         if reschedule_request.status != RescheduleRequest.Status.PENDING:
             messages.info(request, "Solicitarea a fost deja procesata.")
@@ -407,14 +592,14 @@ class BookingCancelView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if request.user not in [self.booking.client, self.booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta comanda.")
+            raise PermissionDenied("Nu ai acces la aceasta cerere.")
         if self.booking.status in [
             Booking.Status.CANCELED,
             Booking.Status.COMPLETED,
             Booking.Status.IN_PROGRESS,
             Booking.Status.DECLINED,
         ]:
-            messages.info(request, "Comanda nu mai poate fi anulata.")
+            messages.info(request, "Cererea nu mai poate fi anulata.")
             return redirect("bookings:detail", pk=self.booking.pk)
         return super().dispatch(request, *args, **kwargs)
 
@@ -439,11 +624,11 @@ class BookingCancelView(LoginRequiredMixin, generic.FormView):
         )
         self.booking.add_event(
             BookingEvent.EventType.CANCELED,
-            "Comanda a fost anulata.",
+            "Cererea a fost anulata.",
             actor=self.request.user,
             payload={"reason": self.booking.cancel_reason},
         )
-        messages.success(self.request, "Comanda a fost anulata.")
+        messages.success(self.request, "Cererea a fost anulata.")
         return redirect("bookings:detail", pk=self.booking.pk)
 
 
@@ -454,14 +639,14 @@ class BookingDeclineView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate refuza.")
+            raise PermissionDenied("Doar voluntarul poate refuza.")
         if self.booking.provider not in [None, request.user]:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if self.booking.status not in [
             Booking.Status.PENDING,
             Booking.Status.RESCHEDULE_REQUESTED,
         ]:
-            messages.info(request, "Comanda nu mai poate fi refuzata.")
+            messages.info(request, "Cererea nu mai poate fi refuzata.")
             return redirect("bookings:detail", pk=self.booking.pk)
         return super().dispatch(request, *args, **kwargs)
 
@@ -486,27 +671,29 @@ class BookingDeclineView(LoginRequiredMixin, generic.FormView):
         )
         self.booking.add_event(
             BookingEvent.EventType.DECLINED,
-            "Comanda a fost refuzata de prestator.",
+            "Cererea a fost refuzata de voluntar.",
             actor=self.request.user,
             payload={"reason": self.booking.cancel_reason},
         )
-        messages.success(self.request, "Ai refuzat comanda.")
+        messages.success(self.request, "Ai refuzat cererea.")
         return redirect("bookings:detail", pk=self.booking.pk)
 
 
 class BookingAcceptView(LoginRequiredMixin, generic.View):
     def post(self, request, pk):
+        from chat.models import ChatMessage
+
         booking = get_object_or_404(Booking, pk=pk)
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate accepta.")
+            raise PermissionDenied("Doar voluntarul poate accepta.")
         if booking.provider not in [None, request.user]:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status not in [
             Booking.Status.PENDING,
             Booking.Status.RESCHEDULE_REQUESTED,
             Booking.Status.DISPUTED,
         ]:
-            messages.info(request, "Comanda nu mai poate fi acceptata.")
+            messages.info(request, "Cererea nu mai poate fi acceptata.")
             return redirect("bookings:detail", pk=pk)
         booking.provider = booking.provider or request.user
         booking.status = Booking.Status.CONFIRMED
@@ -523,10 +710,29 @@ class BookingAcceptView(LoginRequiredMixin, generic.View):
         )
         booking.add_event(
             BookingEvent.EventType.ACCEPTED,
-            "Comanda a fost acceptata de prestator.",
+            "Cererea a fost acceptata de voluntar.",
             actor=request.user,
         )
-        messages.success(request, "Comanda a fost acceptata.")
+
+        conversation = ensure_booking_conversation(booking)
+        if conversation:
+            chat_text = "Voluntarul a acceptat cererea de ajutor."
+            ChatMessage.objects.create(
+                conversation=conversation,
+                booking=booking,
+                sender=request.user,
+                text=chat_text,
+            )
+            for user in conversation.participants.exclude(pk=request.user.pk):
+                notify_user(
+                    user=user,
+                    notif_type=Notification.Type.NEW_MESSAGE,
+                    title="Mesaj nou",
+                    body=chat_text,
+                    link=f"/chat/{conversation.pk}/",
+                )
+
+        messages.success(request, "Cererea a fost acceptata. Mesaj trimis in chat.")
         return redirect("bookings:detail", pk=pk)
 
 
@@ -534,21 +740,21 @@ class BookingStartView(LoginRequiredMixin, generic.View):
     def post(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate incepe.")
+            raise PermissionDenied("Doar voluntarul poate incepe.")
         if booking.provider != request.user:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.CONFIRMED:
-            messages.info(request, "Comanda nu poate fi pornita in acest status.")
+            messages.info(request, "Cererea nu poate fi pornita in acest status.")
             return redirect("bookings:detail", pk=pk)
         booking.status = Booking.Status.IN_PROGRESS
         booking.started_at = timezone.now()
         booking.save(update_fields=["status", "started_at", "updated_at"])
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Prestatorul a marcat comanda ca In curs.",
+            "Voluntarul a marcat cererea ca In curs.",
             actor=request.user,
         )
-        messages.success(request, "Comanda este in curs.")
+        messages.success(request, "Cererea este in curs.")
         return redirect("bookings:detail", pk=pk)
 
 
@@ -559,11 +765,11 @@ class BookingCompleteView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate finaliza.")
+            raise PermissionDenied("Doar voluntarul poate finaliza.")
         if self.booking.provider != request.user:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if self.booking.status != Booking.Status.IN_PROGRESS:
-            messages.info(request, "Comanda nu poate fi finalizata in acest status.")
+            messages.info(request, "Cererea nu poate fi finalizata in acest status.")
             return redirect("bookings:detail", pk=self.booking.pk)
         return super().dispatch(request, *args, **kwargs)
 
@@ -574,14 +780,10 @@ class BookingCompleteView(LoginRequiredMixin, generic.FormView):
 
     def form_valid(self, form):
         self.booking.status = Booking.Status.AWAITING_CLIENT
-        self.booking.price_final = form.cleaned_data["price_final"]
-        self.booking.extra_costs = form.cleaned_data.get("extra_costs") or {}
         self.booking.completed_at = timezone.now()
         self.booking.save(
             update_fields=[
                 "status",
-                "price_final",
-                "extra_costs",
                 "completed_at",
                 "updated_at",
             ]
@@ -589,19 +791,102 @@ class BookingCompleteView(LoginRequiredMixin, generic.FormView):
         note = form.cleaned_data.get("note", "")
         self.booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Comanda a fost marcata ca finalizata de prestator (in asteptare confirmare client).",
+            "Cererea a fost marcata ca finalizata de voluntar (in asteptare confirmare solicitant).",
             actor=self.request.user,
             payload={
-                "price_final": str(self.booking.price_final),
-                "extra_costs": self.booking.extra_costs,
                 "note": note,
             },
         )
         messages.success(
             self.request,
-            "Comanda a fost marcata ca finalizata. Asteptam confirmarea clientului.",
+            "Cererea a fost marcata ca finalizata. Asteptam confirmarea solicitantului.",
         )
         return redirect("bookings:detail", pk=self.booking.pk)
+
+
+class BookingClientConfirmView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+        user = request.user
+        if booking.client != user:
+            raise PermissionDenied("Doar solicitantul poate confirma.")
+        if booking.status != Booking.Status.AWAITING_CLIENT:
+            messages.info(request, "Nu se poate confirma in acest status.")
+            return redirect("bookings:detail", pk=pk)
+
+        note = (request.POST.get("note") or "").strip()
+        booking.status = Booking.Status.COMPLETED
+        booking.client_confirmed_at = timezone.now()
+        booking.client_confirmation_note = note
+        booking.save(
+            update_fields=[
+                "status",
+                "client_confirmed_at",
+                "client_confirmation_note",
+                "updated_at",
+            ]
+        )
+        booking.add_event(
+            BookingEvent.EventType.STATUS_CHANGED,
+            "Solicitantul a confirmat finalizarea.",
+            actor=user,
+            payload={"note": note},
+        )
+        messages.success(request, "Ai confirmat finalizarea cererii.")
+        return redirect("bookings:detail", pk=pk)
+
+
+class BookingClientDisputeView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+        user = request.user
+        if booking.client != user:
+            raise PermissionDenied("Doar solicitantul poate marca disputa.")
+        if booking.status != Booking.Status.AWAITING_CLIENT:
+            messages.info(request, "Nu se poate disputa in acest status.")
+            return redirect("bookings:detail", pk=pk)
+
+        note = (request.POST.get("note") or "").strip()
+        booking.status = Booking.Status.DISPUTED
+        booking.client_confirmed_at = timezone.now()
+        booking.client_confirmation_note = note
+        dispute, created = BookingDispute.objects.get_or_create(
+            booking=booking,
+            defaults={
+                "opened_by": user,
+                "reason": note,
+                "escalated_at": timezone.now(),
+            },
+        )
+        if not created and not dispute.escalated_at:
+            dispute.escalated_at = timezone.now()
+            dispute.save(update_fields=["escalated_at"])
+        if not dispute.reason:
+            dispute.reason = note
+            dispute.save(update_fields=["reason"])
+
+        booking.save(
+            update_fields=[
+                "status",
+                "client_confirmed_at",
+                "client_confirmation_note",
+                "updated_at",
+            ]
+        )
+        booking.add_event(
+            BookingEvent.EventType.DISPUTE_OPENED,
+            "Solicitantul a deschis o disputa.",
+            actor=user,
+            payload={
+                "note": note,
+                "dispute_id": dispute.id,
+                "escalated_at": dispute.escalated_at.isoformat()
+                if dispute.escalated_at
+                else None,
+            },
+        )
+        messages.info(request, "Disputa a fost deschisa.")
+        return redirect("bookings:detail", pk=pk)
 
 
 class BookingResolveDisputeView(LoginRequiredMixin, generic.FormView):
@@ -617,7 +902,7 @@ class BookingResolveDisputeView(LoginRequiredMixin, generic.FormView):
         if not (getattr(request.user, "is_provider", False) or request.user.is_staff):
             raise PermissionDenied("Nu poti marca rezolvarea.")
         if getattr(request.user, "is_provider", False) and self.booking.provider != request.user:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -641,7 +926,7 @@ class BookingResolveDisputeView(LoginRequiredMixin, generic.FormView):
         self.booking.save(update_fields=["status", "updated_at"])
         self.booking.add_event(
             BookingEvent.EventType.DISPUTE_RESOLVED,
-            "Prestatorul a rezolvat disputa.",
+            "Voluntarul a rezolvat disputa.",
             actor=self.request.user,
             payload={"note": note},
         )
@@ -685,7 +970,7 @@ class BookingRepeatView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if self.booking.client != request.user:
-            raise PermissionDenied("Doar clientul poate replica comanda.")
+            raise PermissionDenied("Doar solicitantul poate duplica cererea.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -704,16 +989,15 @@ class BookingRepeatView(LoginRequiredMixin, generic.FormView):
             description=self.booking.description,
             scheduled_start=start,
             duration_minutes=duration,
-            price_estimated=self.booking.price_estimated,
             status=Booking.Status.PENDING,
         )
         new_booking.add_event(
             BookingEvent.EventType.NOTE,
-            "Comanda replicata dintr-o rezervare anterioara.",
+            "Cerere duplicata dintr-un ajutor anterior.",
             actor=self.request.user,
             payload={"source_booking": self.booking.id},
         )
-        messages.success(self.request, "Comanda a fost replicata.")
+        messages.success(self.request, "Cererea a fost duplicata.")
         return redirect("bookings:detail", pk=new_booking.pk)
 
 
@@ -752,7 +1036,6 @@ class RecurringBookingCreateView(LoginRequiredMixin, generic.FormView):
                 description=rule.description,
                 scheduled_start=start_dt,
                 duration_minutes=rule.duration_minutes,
-                price_estimated=rule.service.base_price,
                 status=Booking.Status.PENDING,
                 recurring_rule=rule,
             )
@@ -762,7 +1045,7 @@ class RecurringBookingCreateView(LoginRequiredMixin, generic.FormView):
                 current_date += timezone.timedelta(days=14)
             else:
                 current_date += timezone.timedelta(days=30)
-        messages.success(self.request, "Seria recurentă a fost creată.")
+        messages.success(self.request, "Seria recurentДѓ a fost creatДѓ.")
         return redirect("bookings:list")
 
 
@@ -794,14 +1077,14 @@ class RecurringRuleCancelView(LoginRequiredMixin, View):
         )
         for b in future:
             b.status = Booking.Status.CANCELED
-            b.cancel_reason = "Seria recurentă a fost anulată."
+            b.cancel_reason = "Seria recurenta a fost anulata."
             b.save(update_fields=["status", "cancel_reason", "updated_at"])
             b.add_event(
                 BookingEvent.EventType.CANCELED,
-                "Rezervare anulată deoarece seria a fost oprită.",
+                "Cerere anulata deoarece seria a fost oprita.",
                 actor=request.user,
             )
-        messages.info(request, "Seria a fost oprită și rezervările viitoare anulate.")
+        messages.info(request, "Seria a fost oprita si cererile viitoare au fost anulate.")
         return redirect("bookings:recurring_list")
 
 
@@ -809,7 +1092,7 @@ class RecurringRuleTriggerNextView(LoginRequiredMixin, View):
     def post(self, request, pk):
         rule = get_object_or_404(RecurringBookingRule, pk=pk, client=request.user)
         if not rule.is_active:
-            messages.error(request, "Seria este dezactivată.")
+            messages.error(request, "Seria este dezactivata.")
             return redirect("bookings:recurring_list")
         # find last occurrence
         last_booking = (
@@ -838,17 +1121,16 @@ class RecurringRuleTriggerNextView(LoginRequiredMixin, View):
             description=rule.description,
             scheduled_start=start_dt,
             duration_minutes=rule.duration_minutes,
-            price_estimated=rule.service.base_price,
             status=Booking.Status.PENDING,
             recurring_rule=rule,
         )
         booking.add_event(
             BookingEvent.EventType.NOTE,
-            "Rezervare generată manual din seria recurentă.",
+            "Cerere generata manual din seria recurenta.",
             actor=request.user,
             payload={"rule_id": rule.id},
         )
-        messages.success(request, "Am generat următoarea rezervare din serie.")
+        messages.success(request, "Am generat urmatoarea cerere din serie.")
         return redirect("bookings:detail", pk=booking.pk)
 
 
@@ -866,17 +1148,17 @@ class RecurringRuleSkipNextView(LoginRequiredMixin, View):
             scheduled_start__gte=timezone.now(),
         ).order_by("scheduled_start").first()
         if not upcoming:
-            messages.info(request, "Nu există rezervări viitoare de sărit.")
+            messages.info(request, "Nu exista cereri viitoare de sarit.")
             return redirect("bookings:recurring_list")
         upcoming.status = Booking.Status.CANCELED
-        upcoming.cancel_reason = "Sărit în seria recurentă."
+        upcoming.cancel_reason = "Sarit in seria recurenta."
         upcoming.save(update_fields=["status", "cancel_reason", "updated_at"])
         upcoming.add_event(
             BookingEvent.EventType.CANCELED,
-            "Rezervare anulată (skip următoarea din serie).",
+            "Cerere anulata (skip urmatoarea din serie).",
             actor=request.user,
         )
-        messages.info(request, "Următoarea rezervare a fost sărită.")
+        messages.info(request, "Urmatoarea cerere a fost sarita.")
         return redirect("bookings:recurring_list")
 
 
@@ -885,7 +1167,7 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorii au acces la acest dashboard.")
+            raise PermissionDenied("Doar voluntarii au acces la acest dashboard.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -926,10 +1208,6 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
             "total_30d": recent.count(),
             "completed_30d": recent.filter(status=Booking.Status.COMPLETED).count(),
             "canceled_30d": recent.filter(status=Booking.Status.CANCELED).count(),
-            "revenue_30d": recent.aggregate(total=Sum("price_final"))[
-                "total"
-            ]
-            or 0,
             "accepted_rate": 0,
         }
         total_for_rate = recent.count() or 1
@@ -955,7 +1233,7 @@ class ProviderEarningsCSVView(LoginRequiredMixin, View):
     def get(self, request):
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorii pot exporta veniturile.")
+            raise PermissionDenied("Doar voluntarii pot exporta rapoartele.")
         start_param = request.GET.get("start")
         end_param = request.GET.get("end")
         try:
@@ -1008,8 +1286,6 @@ class ProviderEarningsCSVView(LoginRequiredMixin, View):
                     ),
                     b.service.name,
                     b.client.display_name,
-                    b.price_estimated,
-                    b.price_final or "",
                 ]
             )
         return response
@@ -1043,7 +1319,7 @@ class BookingAttachmentUploadView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if request.user not in [self.booking.client, self.booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta comanda.")
+            raise PermissionDenied("Nu ai acces la aceasta cerere.")
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -1053,11 +1329,11 @@ class BookingAttachmentUploadView(LoginRequiredMixin, generic.FormView):
         attachment.save()
         self.booking.add_event(
             BookingEvent.EventType.NOTE,
-            "A fost adăugat un fișier la comandă.",
+            "A fost adДѓugat un fiИ™ier la comandДѓ.",
             actor=self.request.user,
             payload={"attachment_id": attachment.id, "note": attachment.note},
         )
-        messages.success(self.request, "Fișier încărcat.")
+        messages.success(self.request, "FiИ™ier Г®ncДѓrcat.")
         return redirect("bookings:detail", pk=self.booking.pk)
 
 
@@ -1081,7 +1357,7 @@ class BookingCalendarFeedView(LoginRequiredMixin, View):
             "VERSION:2.0",
             "PRODID:-//sot-la-ora//bookings//EN",
             "CALSCALE:GREGORIAN",
-            f"X-WR-CALNAME:Rezervari {user.username}",
+            f"X-WR-CALNAME:Cereri {user.username}",
         ]
         for booking in qs:
             uid = f"booking-{booking.pk}@sotlaora"
@@ -1169,7 +1445,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     def _ensure_participant(self, booking):
         user = self.request.user
         if user not in [booking.client, booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta comanda.")
+            raise PermissionDenied("Nu ai acces la aceasta cerere.")
 
     @action(detail=True, methods=["post"], url_path="request-reschedule")
     def request_reschedule(self, request, pk=None):
@@ -1183,7 +1459,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             Booking.Status.DISPUTED,
         ]:
             return Response(
-                {"detail": "Comanda nu mai poate fi reprogramata."},
+                {"detail": "Cererea nu mai poate fi reprogramata."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if booking.reschedule_requests.filter(
@@ -1251,7 +1527,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             Booking.Status.DECLINED,
         ]:
             return Response(
-                {"detail": "Comanda nu mai poate fi modificata."},
+                {"detail": "Cererea nu mai poate fi modificata."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         reschedule_request = get_object_or_404(
@@ -1343,7 +1619,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             Booking.Status.DISPUTED,
         ]:
             return Response(
-                {"detail": "Comanda nu mai poate fi anulata."},
+                {"detail": "Cererea nu mai poate fi anulata."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1364,7 +1640,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         booking.add_event(
             BookingEvent.EventType.CANCELED,
-            "Comanda a fost anulata.",
+            "Cererea a fost anulata.",
             actor=request.user,
             payload={"reason": booking.cancel_reason},
         )
@@ -1374,63 +1650,93 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Response(output.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def accept(self, request, pk=None):
-        booking = self.get_object()
-        user = request.user
-        if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate accepta.")
-        if booking.provider not in [None, user]:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
-        if booking.status not in [
-            Booking.Status.PENDING,
-            Booking.Status.RESCHEDULE_REQUESTED,
-        ]:
+        idem_key = request.headers.get("Idempotency-Key")
+        cache_key = None
+        if idem_key:
+            cache_key = f"idem:application_accept:{pk}:{idem_key}"
+            from django.core.cache import cache
+
+            if cache.get(cache_key):
+                return Response(self.get_serializer(self.get_object()).data)
+        application = self.get_queryset().select_for_update().get(pk=pk)
+        help_request = application.help_request
+        if help_request.is_locked and not request.user.is_staff:
+            raise PermissionDenied("Cererea este blocat? de admin.")
+        if request.user not in [help_request.created_by] and not request.user.is_staff:
+            raise PermissionDenied("Nu po?i accepta aceast? aplica?ie.")
+        if application.status != VolunteerApplication.Status.PENDING:
             return Response(
-                {"detail": "Comanda nu mai poate fi acceptata."},
+                {"detail": "Aplica?ie nu mai poate fi acceptat?."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if help_request.status not in [
+            HelpRequest.Status.OPEN,
+            HelpRequest.Status.IN_REVIEW,
+        ]:
+            return Response(
+                {"detail": "Cererea nu poate fi acceptat? din acest status."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        existing = VolunteerApplication.objects.filter(
+            help_request=help_request, status=VolunteerApplication.Status.ACCEPTED
+        ).exclude(pk=application.pk)
+        if existing.exists():
+            return Response(
+                {"detail": "ExistДѓ deja o aplicaИ›ie acceptatДѓ."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        VolunteerApplication.objects.filter(
+            help_request=help_request,
+            status=VolunteerApplication.Status.PENDING,
+        ).exclude(pk=application.pk).update(
+            status=VolunteerApplication.Status.REJECTED
+        )
+        application.status = VolunteerApplication.Status.ACCEPTED
+        application.save(update_fields=["status", "updated_at"])
+        help_request.status = HelpRequest.Status.MATCHED
+        help_request.matched_volunteer = application.volunteer
+        help_request.accepted_at = timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(
+            update_fields=["status", "matched_volunteer", "accepted_at", "updated_at", "status_history"]
+        )
+        notify_user(
+            user=application.volunteer,
+            notif_type=None,
+            title="Aplica?ie acceptat?",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        log_audit(
+            request.user,
+            "application_accepted",
+            application,
+            {"help_request": help_request.pk},
+            request=request,
+        )
+        if cache_key:
+            from django.core.cache import cache
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        note = serializer.validated_data.get("note", "")
+            cache.set(cache_key, True, timeout=self.idem_ttl)
+        return Response(self.get_serializer(application).data)
 
-        booking.provider = booking.provider or user
-        booking.status = Booking.Status.CONFIRMED
-        booking.accepted_at = timezone.now()
-        booking.accepted_by = user
-        booking.save(
-            update_fields=[
-                "provider",
-                "status",
-                "accepted_at",
-                "accepted_by",
-                "updated_at",
-            ]
-        )
-        booking.add_event(
-            BookingEvent.EventType.ACCEPTED,
-            "Comanda a fost acceptata de prestator.",
-            actor=user,
-            payload={"note": note} if note else {},
-        )
-        return Response(
-            BookingSerializer(booking, context=self.get_serializer_context()).data
-        )
 
     @action(detail=True, methods=["post"])
     def decline(self, request, pk=None):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate refuza.")
+            raise PermissionDenied("Doar voluntarul poate refuza.")
         if booking.provider not in [None, user]:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status not in [
             Booking.Status.PENDING,
             Booking.Status.RESCHEDULE_REQUESTED,
         ]:
             return Response(
-                {"detail": "Comanda nu mai poate fi refuzata."},
+                {"detail": "Cererea nu mai poate fi refuzata."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1453,7 +1759,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         booking.add_event(
             BookingEvent.EventType.DECLINED,
-            "Comanda a fost refuzata de prestator.",
+            "Cererea a fost refuzata de voluntar.",
             actor=user,
             payload={"reason": reason},
         )
@@ -1466,12 +1772,12 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate incepe.")
+            raise PermissionDenied("Doar voluntarul poate incepe.")
         if booking.provider != user:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.CONFIRMED:
             return Response(
-                {"detail": "Comanda nu poate fi pornita."},
+                {"detail": "Cererea nu poate fi pornita."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         booking.status = Booking.Status.IN_PROGRESS
@@ -1479,7 +1785,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=["status", "started_at", "updated_at"])
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Prestatorul a marcat comanda ca In curs.",
+            "Voluntarul a marcat cererea ca In curs.",
             actor=user,
         )
         return Response(
@@ -1491,25 +1797,21 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar prestatorul poate finaliza.")
+            raise PermissionDenied("Doar voluntarul poate finaliza.")
         if booking.provider != user:
-            raise PermissionDenied("Nu esti asignat la aceasta comanda.")
+            raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.IN_PROGRESS:
             return Response(
-                {"detail": "Comanda nu poate fi finalizata in acest status."},
+                {"detail": "Cererea nu poate fi finalizata in acest status."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         booking.status = Booking.Status.COMPLETED
-        booking.price_final = serializer.validated_data["price_final"]
-        booking.extra_costs = serializer.validated_data.get("extra_costs") or {}
         booking.completed_at = timezone.now()
         booking.save(
             update_fields=[
                 "status",
-                "price_final",
-                "extra_costs",
                 "completed_at",
                 "updated_at",
             ]
@@ -1517,11 +1819,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         note = serializer.validated_data.get("note", "")
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Comanda a fost finalizata.",
+            "Cererea a fost finalizata.",
             actor=user,
             payload={
-                "price_final": str(booking.price_final),
-                "extra_costs": booking.extra_costs,
                 "note": note,
             },
         )
@@ -1533,7 +1833,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     def repeat(self, request, pk=None):
         booking = self.get_object()
         if booking.client != request.user:
-            raise PermissionDenied("Doar clientul poate replica rezervarea.")
+            raise PermissionDenied("Doar solicitantul poate duplica cererea.")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_start = serializer.validated_data.get("scheduled_start") or timezone.now()
@@ -1548,12 +1848,11 @@ class BookingViewSet(viewsets.ModelViewSet):
             description=booking.description,
             scheduled_start=new_start,
             duration_minutes=duration,
-            price_estimated=booking.price_estimated,
             status=Booking.Status.PENDING,
         )
         new_booking.add_event(
             BookingEvent.EventType.NOTE,
-            "Comanda replicata dintr-o rezervare anterioara.",
+            "Cerere duplicata dintr-un ajutor anterior.",
             actor=request.user,
             payload={"source_booking": booking.id},
         )
@@ -1587,7 +1886,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                 description=rule.description,
                 scheduled_start=start_dt,
                 duration_minutes=rule.duration_minutes,
-                price_estimated=rule.service.base_price,
                 status=Booking.Status.PENDING,
                 recurring_rule=rule,
             )
@@ -1611,7 +1909,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if booking.client != user:
-            raise PermissionDenied("Doar clientul poate confirma.")
+            raise PermissionDenied("Doar solicitantul poate confirma.")
         if booking.status != Booking.Status.AWAITING_CLIENT:
             return Response(
                 {"detail": "Nu se poate confirma in acest status."},
@@ -1634,7 +1932,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Clientul a confirmat finalizarea.",
+            "Solicitantul a confirmat finalizarea.",
             actor=user,
             payload={"note": booking.client_confirmation_note},
         )
@@ -1647,7 +1945,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if booking.client != user:
-            raise PermissionDenied("Doar clientul poate marca disputa.")
+            raise PermissionDenied("Doar solicitantul poate marca disputa.")
         if booking.status != Booking.Status.AWAITING_CLIENT:
             return Response(
                 {"detail": "Nu se poate disputa in acest status."},
@@ -1685,7 +1983,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         booking.add_event(
             BookingEvent.EventType.DISPUTE_OPENED,
-            "Clientul a deschis o disputa.",
+            "Solicitantul a deschis o disputa.",
             actor=user,
             payload={
                 "note": booking.client_confirmation_note,
@@ -1718,3 +2016,477 @@ class BookingViewSet(viewsets.ModelViewSet):
             return response
         except Exception:
             return HttpResponse(html)
+
+
+# --- HelpRequest & VolunteerApplication API (non-commercial core) ---
+
+
+class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
+    queryset = HelpRequest.objects.select_related(
+        "created_by", "matched_volunteer", "category"
+    ).prefetch_related("applications__volunteer", "attachments")
+    serializer_class = HelpRequestSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsHelpRequestOwnerOrAdmin]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, HelpRequestThrottle]
+    throttle_scope = "help-requests"
+
+    def _ensure_not_locked(self, help_request):
+        if help_request.is_locked and not self.request.user.is_staff:
+            raise PermissionDenied("Cererea este blocatДѓ de admin.")
+
+    def _auto_award_badges(self, profile, actor, request):
+        # simple thresholds to avoid monetization; extendable
+        thresholds = [1, 5, 10]
+        for n in thresholds:
+            name = f"Helper - {n} requests"
+            badge, _ = Badge.objects.get_or_create(name=name, defaults={"description": f"{n} cereri finalizate"})
+            if profile.completed_requests >= n and badge not in profile.badges.all():
+                profile.badges.add(badge)
+                log_audit(actor, "badge_awarded", badge, {"to": profile.user_id, "threshold": n}, request=request)
+
+    def create(self, request, *args, **kwargs):
+        idem_key = request.headers.get("Idempotency-Key")
+        if idem_key:
+            instance = self._get_cached_instance(HelpRequest, "help_request_create", idem_key)
+            if instance:
+                serializer = self.get_serializer(instance)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        response = super().create(request, *args, **kwargs)
+        if idem_key and getattr(response, "data", None):
+            created_id = response.data.get("id")
+            if created_id:
+                instance = HelpRequest.objects.filter(pk=created_id).first()
+                self._remember_instance(instance, "help_request_create", idem_key)
+        return response
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not getattr(user, "is_client", False) and not user.is_staff:
+            raise PermissionDenied("Doar solicitantii pot crea cereri.")
+        urgency = serializer.validated_data.get("urgency")
+        if urgency == getattr(HelpRequest.Urgency, "HIGH", None) and not user.is_verified:
+            raise PermissionDenied("Pentru urgentДѓ este necesarДѓ verificare.")
+        serializer.save(created_by=self.request.user, status_history=[])
+        notify_user(
+            user=self.request.user,
+            notif_type=None,
+            title="Cerere creatДѓ",
+            body=serializer.instance.title,
+            link=f"/help-requests/{serializer.instance.pk}/",
+        )
+        log_audit(user, "help_request_created", serializer.instance, request=self.request)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.status not in [
+            HelpRequest.Status.OPEN,
+            HelpRequest.Status.IN_REVIEW,
+        ]:
+            raise PermissionDenied("Cererea nu mai poate fi editatДѓ Г®n acest status.")
+        # prevent status tampering via update; status changes via dedicated actions
+        serializer.save(status=instance.status, matched_volunteer=instance.matched_volunteer)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if user not in [instance.created_by] and not user.is_staff:
+            raise PermissionDenied("Nu poИ›i И™terge aceastДѓ cerere.")
+        instance.is_deleted = True
+        instance.status = HelpRequest.Status.CANCELLED
+        instance.cancel_reason = "deleted"
+        instance.canceled_at = timezone.now()
+        append_help_request_history(instance, instance.status, user)
+        instance.save(
+            update_fields=[
+                "is_deleted",
+                "status",
+                "cancel_reason",
+                "canceled_at",
+                "updated_at",
+                "status_history",
+            ]
+        )
+        log_audit(user, "help_request_soft_deleted", instance, request=self.request)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_staff:
+            qs = qs.filter(is_deleted=False)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        urgency = self.request.query_params.get("urgency")
+        if urgency:
+            qs = qs.filter(urgency=urgency)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        help_request = self.get_object()
+        if request.user not in [help_request.created_by, help_request.matched_volunteer] and not request.user.is_staff:
+            raise PermissionDenied("Nu poИ›i anula aceastДѓ cerere.")
+        self._ensure_not_locked(help_request)
+        if help_request.status in [HelpRequest.Status.DONE, HelpRequest.Status.CANCELLED]:
+            return Response(self.get_serializer(help_request).data)
+        serializer = BookingCancelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        help_request.status = HelpRequest.Status.CANCELLED
+        help_request.cancel_reason = serializer.validated_data.get("reason", "")
+        help_request.canceled_at = timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(
+            update_fields=[
+                "status",
+                "cancel_reason",
+                "canceled_at",
+                "updated_at",
+                "status_history",
+            ]
+        )
+        log_audit(
+            request.user,
+            "help_request_cancelled",
+            help_request,
+            {"reason": help_request.cancel_reason},
+            request=request,
+        )
+        recipients = [help_request.created_by]
+        if help_request.matched_volunteer and help_request.matched_volunteer not in recipients:
+            recipients.append(help_request.matched_volunteer)
+        for user in recipients:
+            notify_user(
+                user=user,
+                notif_type=None,
+                title="Cerere anulatДѓ",
+                body=help_request.title,
+                link=f"/help-requests/{help_request.pk}/",
+            )
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        help_request = self.get_object()
+        if request.user not in [help_request.matched_volunteer] and not request.user.is_staff:
+            raise PermissionDenied("Nu poИ›i porni aceastДѓ cerere.")
+        self._ensure_not_locked(help_request)
+        if not help_request.matched_volunteer:
+            return Response(
+                {"detail": "Cererea nu are voluntar atribuit."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if help_request.status not in [
+            HelpRequest.Status.MATCHED,
+            HelpRequest.Status.IN_PROGRESS,
+        ]:
+            raise ConflictError("Nu se poate porni Г®n acest status.")
+        if help_request.status == HelpRequest.Status.IN_PROGRESS:
+            return Response(self.get_serializer(help_request).data)
+        help_request.status = HelpRequest.Status.IN_PROGRESS
+        help_request.started_at = help_request.started_at or timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(update_fields=["status", "started_at", "updated_at", "status_history"])
+        notify_user(
+            user=help_request.created_by,
+            notif_type=None,
+            title="Cerere Г®n curs",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        log_audit(request.user, "help_request_started", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        help_request = self.get_object()
+        if request.user not in [help_request.matched_volunteer] and not request.user.is_staff:
+            raise PermissionDenied("Nu poИ›i finaliza aceastДѓ cerere.")
+        self._ensure_not_locked(help_request)
+        if help_request.status == HelpRequest.Status.DONE:
+            return Response(self.get_serializer(help_request).data)
+        if help_request.status != HelpRequest.Status.IN_PROGRESS:
+            raise ConflictError("Nu se poate finaliza Г®n acest status.")
+        help_request.status = HelpRequest.Status.DONE
+        help_request.completed_at = timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(update_fields=["status", "completed_at", "updated_at", "status_history"])
+        notify_user(
+            user=help_request.created_by,
+            notif_type=None,
+            title="Cerere finalizatДѓ",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        return self._after_completion(help_request, request)
+
+    @action(detail=True, methods=["post"])
+    def send_to_review(self, request, pk=None):
+        help_request = self.get_object()
+        if not request.user.is_staff:
+            raise PermissionDenied("Doar adminul poate trimite Г®n review.")
+        if help_request.status != HelpRequest.Status.OPEN:
+            raise ConflictError("Se poate trimite Г®n review doar din open.")
+        help_request.status = HelpRequest.Status.IN_REVIEW
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(update_fields=["status", "updated_at", "status_history"])
+        notify_user(
+            user=help_request.created_by,
+            notif_type=None,
+            title="Cerere Г®n review",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        log_audit(request.user, "help_request_sent_to_review", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+    def _after_completion(self, help_request, request):
+        volunteer = help_request.matched_volunteer
+        if volunteer and hasattr(volunteer, "provider_profile"):
+            profile = volunteer.provider_profile
+            profile.completed_requests = profile.completed_requests + 1
+            profile.total_hours_helped = profile.total_hours_helped + 1
+            profile.save(update_fields=["completed_requests", "total_hours_helped"])
+            self._auto_award_badges(profile, request.user, request)
+            from accounts.models import ProviderMonthlyStat
+            today = timezone.now().date()
+            monthly, _ = ProviderMonthlyStat.objects.get_or_create(
+                provider=volunteer,
+                year=today.year,
+                month=today.month,
+                defaults={"completed_requests": 0, "total_hours": 0},
+            )
+            monthly.completed_requests += 1
+            monthly.total_hours += 1
+            monthly.save(update_fields=["completed_requests", "total_hours", "updated_at"])
+            try:
+                from .tasks import generate_certificate
+                if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+                    certificate_id = generate_certificate(help_request.pk)
+                else:
+                    generate_certificate.delay(help_request.pk)
+                    certificate_id = None
+                if certificate_id:
+                    cert = CompletionCertificate.objects.filter(pk=certificate_id).first()
+                    if cert:
+                        log_audit(request.user, "certificate_issued", cert, request=request)
+            except Exception as exc:
+                log_audit(request.user, "certificate_issue_failed", help_request, {"error": str(exc)}, request=request)
+        log_audit(request.user, "help_request_completed", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        help_request = self.get_object()
+        if not request.user.is_staff:
+            raise PermissionDenied("Doar adminul poate aproba.")
+        if help_request.status != HelpRequest.Status.IN_REVIEW:
+            raise ConflictError("Poate fi aprobat doar din review.")
+        help_request.status = HelpRequest.Status.OPEN
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(update_fields=["status", "updated_at", "status_history"])
+        notify_user(
+            user=help_request.created_by,
+            notif_type=None,
+            title="Cerere aprobat?",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        log_audit(request.user, "help_request_approved", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def reject(self, request, pk=None):
+        help_request = self.get_object()
+        if not request.user.is_staff:
+            raise PermissionDenied("Doar adminul poate respinge.")
+        if help_request.status not in [HelpRequest.Status.IN_REVIEW, HelpRequest.Status.OPEN]:
+            raise ConflictError("Nu se poate respinge din acest status.")
+        serializer = BookingCancelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        help_request.status = HelpRequest.Status.CANCELLED
+        help_request.cancel_reason = serializer.validated_data.get("reason", "")
+        help_request.canceled_at = timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(update_fields=["status", "cancel_reason", "canceled_at", "updated_at", "status_history"])
+        notify_user(
+            user=help_request.created_by,
+            notif_type=None,
+            title="Cerere respins?",
+            body=help_request.title,
+            link=f"/help-requests/{help_request.pk}/",
+        )
+        log_audit(
+            request.user,
+            "help_request_rejected",
+            help_request,
+            {"reason": help_request.cancel_reason},
+            request=request,
+        )
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["get"], url_path="certificate")
+    def certificate(self, request, pk=None):
+        help_request = self.get_object()
+        cert = getattr(help_request, "completion_certificate", None)
+        if not cert:
+            return Response({"detail": "Certificat indisponibil."}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+        allowed = user.is_staff or user == help_request.created_by or user == help_request.matched_volunteer
+        if not allowed:
+            raise PermissionDenied("Nu ai acces la acest certificat.")
+        pdf_url = None
+        if cert.pdf:
+            pdf_url = get_signed_url(cert.pdf)
+        data = {
+            "id": cert.pk,
+            "issued_at": cert.issued_at,
+            "pdf_url": pdf_url,
+            "summary": cert.summary,
+        }
+        return Response(data)
+
+
+    @action(detail=True, methods=["post"])
+    def lock(self, request, pk=None):
+        help_request = self.get_object()
+        if not request.user.is_staff:
+            raise PermissionDenied("Doar adminul poate bloca.")
+        help_request.is_locked = True
+        help_request.save(update_fields=["is_locked", "updated_at"])
+        log_audit(request.user, "help_request_locked", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+    @action(detail=True, methods=["post"])
+    def unlock(self, request, pk=None):
+        help_request = self.get_object()
+        if not request.user.is_staff:
+            raise PermissionDenied("Doar adminul poate debloca.")
+        help_request.is_locked = False
+        help_request.save(update_fields=["is_locked", "updated_at"])
+        log_audit(request.user, "help_request_unlocked", help_request, request=request)
+        return Response(self.get_serializer(help_request).data)
+
+
+class VolunteerApplicationViewSet(viewsets.ModelViewSet):
+    queryset = VolunteerApplication.objects.select_related(
+        "help_request", "volunteer", "help_request__created_by"
+    )
+    serializer_class = VolunteerApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = "volunteer-applications"
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = super().get_queryset()
+        if not user.is_staff:
+            qs = qs.filter(help_request__is_deleted=False)
+        if user.is_staff:
+            return qs
+        if getattr(user, "is_provider", False):
+            return qs.filter(volunteer=user)
+        # requester/admin: show applications for own help requests
+        return qs.filter(help_request__created_by=user)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not getattr(user, "is_provider", False):
+            raise PermissionDenied("Doar voluntarii pot aplica.")
+        help_request = serializer.validated_data["help_request"]
+        if help_request.status not in [
+            HelpRequest.Status.OPEN,
+            HelpRequest.Status.IN_REVIEW,
+        ]:
+            raise PermissionDenied("Cererea nu mai acceptДѓ aplicaИ›ii.")
+        serializer.save(volunteer=user)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def withdraw(self, request, pk=None):
+        application = self.get_object()
+        if application.help_request.is_locked and not request.user.is_staff:
+            raise PermissionDenied("Cererea este blocat? de admin.")
+        if application.volunteer != request.user:
+            raise PermissionDenied("Nu po?i retrage aceast? aplica?ie.")
+        if application.status == VolunteerApplication.Status.WITHDRAWN:
+            return Response(self.get_serializer(application).data)
+        if application.status != VolunteerApplication.Status.PENDING:
+            raise ConflictError("AplicaИ›ia nu mai poate fi retrasДѓ.")
+        application.status = VolunteerApplication.Status.WITHDRAWN
+        application.save(update_fields=["status", "updated_at"])
+        log_audit(
+            request.user,
+            "application_withdrawn",
+            application,
+            {"help_request": application.help_request_id},
+            request=request,
+        )
+        return Response(self.get_serializer(application).data)
+
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def accept(self, request, pk=None):
+        application = self.get_queryset().select_for_update().get(pk=pk)
+        help_request = application.help_request
+        if help_request.is_locked and not request.user.is_staff:
+            raise PermissionDenied("Cererea este blocata de admin.")
+        if request.user not in [help_request.created_by] and not request.user.is_staff:
+            raise PermissionDenied("Nu poti accepta aceasta aplicatie.")
+        if application.status == VolunteerApplication.Status.ACCEPTED:
+            ensure_help_request_conversation(help_request)
+            return Response(self.get_serializer(application).data, status=status.HTTP_200_OK)
+        if application.status != VolunteerApplication.Status.PENDING:
+            raise ConflictError("Aplicatia nu mai poate fi acceptata.")
+        if help_request.status not in [
+            HelpRequest.Status.OPEN,
+            HelpRequest.Status.IN_REVIEW,
+        ]:
+            raise ConflictError("Cererea nu poate fi acceptata din acest status.")
+        VolunteerApplication.objects.filter(
+            help_request=help_request,
+            status=VolunteerApplication.Status.PENDING,
+        ).exclude(pk=application.pk).update(
+            status=VolunteerApplication.Status.REJECTED
+        )
+        application.status = VolunteerApplication.Status.ACCEPTED
+        application.save(update_fields=["status", "updated_at"])
+        help_request.status = HelpRequest.Status.MATCHED
+        help_request.matched_volunteer = application.volunteer
+        help_request.accepted_at = timezone.now()
+        append_help_request_history(help_request, help_request.status, request.user)
+        help_request.save(
+            update_fields=["status", "matched_volunteer", "accepted_at", "updated_at", "status_history"]
+        )
+        conversation = ensure_help_request_conversation(help_request)
+        notify_user(
+            user=application.volunteer,
+            notif_type=None,
+            title="Aplicatie acceptata",
+            body=help_request.title,
+            link=f"/chat/{conversation.pk}/",
+        )
+        return Response(self.get_serializer(application).data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def reject(self, request, pk=None):
+        application = self.get_object()
+        help_request = application.help_request
+        if request.user not in [help_request.created_by] and not request.user.is_staff:
+            raise PermissionDenied("Nu poИ›i respinge aceastДѓ aplicaИ›ie.")
+        if application.status == VolunteerApplication.Status.REJECTED:
+            return Response(self.get_serializer(application).data, status=status.HTTP_200_OK)
+        if application.status != VolunteerApplication.Status.PENDING:
+            raise ConflictError("AplicaИ›ia nu mai poate fi respinsДѓ.")
+        application.status = VolunteerApplication.Status.REJECTED
+        application.save(update_fields=["status", "updated_at"])
+        log_audit(
+            request.user,
+            "application_rejected",
+            application,
+            {"help_request": help_request.pk},
+            request=request,
+        )
+        return Response(self.get_serializer(application).data)
+
+

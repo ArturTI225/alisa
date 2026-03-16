@@ -22,12 +22,7 @@ class ServiceCategory(models.Model):
     def __str__(self) -> str:
         return self.name
 
-
 class Service(models.Model):
-    class PriceType(models.TextChoices):
-        HOURLY = "hourly", "Pe oră"
-        FIXED = "fixed", "Preț fix"
-
     category = models.ForeignKey(
         ServiceCategory,
         related_name="services",
@@ -36,12 +31,6 @@ class Service(models.Model):
     name = models.CharField(max_length=150)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    price_type = models.CharField(
-        max_length=20,
-        choices=PriceType.choices,
-        default=PriceType.HOURLY,
-    )
-    base_price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     duration_estimate_minutes = models.PositiveIntegerField(default=60)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

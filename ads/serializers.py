@@ -24,8 +24,6 @@ class AdSerializer(serializers.ModelSerializer):
             "category_id",
             "city",
             "district",
-            "budget_min",
-            "budget_max",
             "status",
             "is_urgent",
             "deadline",
@@ -60,7 +58,6 @@ class OfferSerializer(serializers.ModelSerializer):
             "ad",
             "craftsman",
             "message",
-            "proposed_price",
             "status",
             "created_at",
         ]

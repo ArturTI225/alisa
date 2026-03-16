@@ -1,24 +1,20 @@
-"use client";
-
 import "./globals.css";
 import { ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { PageMotion } from "@/components/PageMotion";
+import { TopNav } from "@/components/TopNav";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ro">
       <body>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key="page"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900 focus:shadow-lg"
+        >
+          Sare la conținut
+        </a>
+        <TopNav />
+        <PageMotion>{children}</PageMotion>
       </body>
     </html>
   );

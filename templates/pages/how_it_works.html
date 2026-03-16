@@ -1,10 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Cum functioneaza - Sot la ora{% endblock %}
+{% block title %}Cum functioneaza - La u&#351;a ta{% endblock %}
 {% block content %}
-<section class="section glass">
-    <div class="badge">Flux complet</div>
-    <h1>Cum functioneaza platforma</h1>
-    <p class="muted">Trei pasi simpli de la cerere la finalizare, cu status live si suport transparent, fara costuri afisate.</p>
+<section class="section card glass split-hero">
+    <div>
+        <div class="badge">Flux complet</div>
+        <h1>Cum functioneaza platforma</h1>
+        <p class="muted">De la cerere la finalizare: status live, comunicare directa si suport transparent.</p>
+        <div class="pill-row">
+            <span class="chip chip-ghost">Fara costuri publice</span>
+            <span class="chip chip-ghost">Chat securizat</span>
+            <span class="chip chip-ghost">Recenzii reale</span>
+        </div>
+        <div class="actions-row" style="margin-top:12px;">
+            <a class="btn-primary" href="/bookings/new/">Rezerva acum</a>
+            <a class="btn-secondary" href="/accounts/signup/">Devino prestator</a>
+        </div>
+    </div>
+    <div class="card glass-lite">
+        <h3>Ce se intampla dupa cerere</h3>
+        <ul>
+            <li>Primesti confirmare in dashboard si pe email.</li>
+            <li>Prestatorul accepta sau propune alt interval.</li>
+            <li>Urmaresti statusul in timp real.</li>
+            <li>Confirmi finalizarea si lasi review.</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">4 pasi</div>
+            <h2>Pasii principali</h2>
+        </div>
+    </header>
     <div class="timeline how-cards">
         <div class="card glass-lite hover-up">
             <div class="icon-circle">1</div>
@@ -14,7 +43,7 @@
         <div class="card glass-lite hover-up">
             <div class="icon-circle">2</div>
             <h3>2. Rezervi intervalul</h3>
-            <p>Alegi data/ora, blochezi slotul si confirmi detaliile inainte de start, fara sa afisezi sume.</p>
+            <p>Alegi data/ora, blochezi slotul si confirmi detaliile inainte de start.</p>
         </div>
         <div class="card glass-lite hover-up">
             <div class="icon-circle">3</div>
@@ -27,9 +56,42 @@
             <p>Notificari email, arhiva de comenzi si recenzii accesibile oricand.</p>
         </div>
     </div>
-    <div class="hero-cta" style="margin-top:16px;">
-        <a class="btn-primary" href="/bookings/new/">Rezerva acum</a>
-        <a class="btn-secondary" href="/accounts/signup/">Devino prestator</a>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Siguranta</div>
+            <h2>De ce este sigur</h2>
+        </div>
+    </header>
+    <div class="stat-grid">
+        <div class="stat-card glass-lite">
+            <div class="stat-number">ID verificat</div>
+            <p class="muted">Verificare de baza pentru fiecare prestator.</p>
+        </div>
+        <div class="stat-card glass-lite">
+            <div class="stat-number">Chat salvat</div>
+            <p class="muted">Istoric complet pentru clarificari ulterioare.</p>
+        </div>
+        <div class="stat-card glass-lite">
+            <div class="stat-number">Suport activ</div>
+            <p class="muted">Intervenim rapid in cazul disputelor.</p>
+        </div>
     </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">Start rapid</div>
+            <h2>Gata sa incerci?</h2>
+        </div>
+        <div class="actions-row">
+            <a class="btn-primary" href="/bookings/new/">Rezerva acum</a>
+            <a class="btn-ghost" href="/services/">Vezi servicii</a>
+        </div>
+    </header>
+    <p class="muted">Ai nevoie de ajutor? Scrie-ne direct din platforma.</p>
 </section>
 {% endblock %}

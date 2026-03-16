@@ -3,12 +3,15 @@ from rest_framework import serializers
 from services.models import Service
 from .models import (
     Address,
+    AuditLog,
     FavoriteProvider,
     FavoriteService,
     Notification,
     NotificationPreference,
     ProviderProfile,
+    Report,
     User,
+    Verification,
 )
 
 
@@ -66,7 +69,6 @@ class ProviderProfileSerializer(serializers.ModelSerializer):
             "user",
             "bio",
             "skills",
-            "hourly_rate",
             "city",
             "experience_years",
             "verification_status",
@@ -79,7 +81,7 @@ class ProviderProfileSerializer(serializers.ModelSerializer):
 class ServiceSlimSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
-        fields = ["id", "name", "base_price"]
+        fields = ["id", "name"]
 
 
 class FavoriteServiceSerializer(serializers.ModelSerializer):
@@ -120,3 +122,55 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             "urgent_ads",
             "reviews",
         ]
+
+
+class VerificationSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    checked_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Verification
+        fields = [
+            "id",
+            "user",
+            "verification_type",
+            "status",
+            "evidence",
+            "checked_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "checked_by", "created_at", "updated_at"]
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    reporter = UserSerializer(read_only=True)
+    reported_user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Report
+        fields = [
+            "id",
+            "reporter",
+            "reported_user",
+            "reported_user_id",
+            "help_request",
+            "reason",
+            "status",
+            "admin_notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "reporter", "reported_user", "created_at", "updated_at"]
+        extra_kwargs = {
+            "reported_user_id": {"write_only": True, "source": "reported_user", "required": False}
+        }
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    actor = UserSerializer(read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = ["id", "actor", "action", "target_model", "target_id", "metadata", "created_at"]
+        read_only_fields = fields
