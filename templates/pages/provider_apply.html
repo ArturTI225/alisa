@@ -1,54 +1,164 @@
 {% extends "base.html" %}
-{% block title %}Devino sot la ora{% endblock %}
+{% block title %}Devino membru | La u&#537;a ta{% endblock %}
 {% block content %}
-<div class="section provider-hero glass">
-    <div>
-        <div class="badge">Colaborare</div>
-        <h1>Devino \"sot la ora\"</h1>
-        <p>Primeste cereri verificate, calendar clar si suport sigur. Alatura-te retelei noastre de mesteri si contribuie la impact social, fara focus pe venit.</p>
+
+<section class="section member-hero card glass">
+    <div class="member-hero__copy">
+        <div class="badge badge-glow">Comunitate</div>
+        <h1>Devino membru La u&#537;a ta</h1>
+        <p class="muted">Al&#259;tur&#259;-te re&#539;elei noastre de prestatori verifica&#539;i &#537;i ofer&#259; ajutor real oamenilor care au nevoie de interven&#539;ii rapide acas&#259;.</p>
         <div class="chips">
             <span class="chip">Program flexibil</span>
-            <span class="chip">Clienti verificati</span>
-            <span class="chip">Impact social</span>
+            <span class="chip">Cereri verificate</span>
+            <span class="chip">F&#259;r&#259; comisioane</span>
         </div>
-        <div class="pill-row">
-            <span class="pill glass-lite">+180 prestatori</span>
-            <span class="pill glass-lite">Rating mediu 4.9</span>
-            <span class="pill glass-lite">Zero comisioane</span>
-        </div>
-        <div class="hero-cta" style="margin-top:12px;">
-            <a class="btn-primary" href="/accounts/signup/">Aplica acum</a>
-            <button class="btn-secondary" type="button" data-open-modal="#demo-modal">Rezerva demo call</button>
+        <div class="actions-row">
+            <a class="btn-primary" href="/accounts/signup/">Aplic&#259; acum</a>
+            <a class="btn-secondary" href="/faq/">Vezi &#238;ntreb&#259;ri frecvente</a>
         </div>
     </div>
-    <div class="card glass-lite">
-        <h3>Ce primesti</h3>
-        <ul>
-            <li>Dashboard cu comenzi noi si calendar.</li>
-            <li>Chat cu clientii si atasamente foto.</li>
-            <li>Rating si recenzii publice.</li>
-            <li>Suport de la echipa noastra pentru cauze sociale.</li>
+    <aside class="member-hero__panel card-neo">
+        <h3>Ce prime&#537;ti ca membru</h3>
+        <ul class="member-checklist">
+            <li>Panou cu cereri noi &#537;i status &#238;n timp real.</li>
+            <li>Chat direct cu clien&#539;ii &#537;i ata&#537;amente foto.</li>
+            <li>Recenzii transparente &#537;i profil public verificat.</li>
+            <li>Suport rapid din partea echipei La u&#537;a ta.</li>
         </ul>
-    </div>
-</div>
-
-<div class="modal" id="demo-modal">
-    <div class="modal-content">
-        <button class="modal-close" data-close-modal>&times;</button>
-        <h3>Programeaza un demo call</h3>
-        <p class="muted">Iti aratam cum functioneaza dashboard-ul de prestator in 15 minute.</p>
-        <form class="modal-form">
-            <label>Nume</label>
-            <input type="text" placeholder="Nume si prenume">
-            <label>Email</label>
-            <input type="email" placeholder="email@example.com">
-            <label>Data preferata</label>
-            <input type="date">
-            <div class="hero-cta" style="margin-top:10px;">
-                <button class="btn-secondary" type="button" data-close-modal>Anuleaza</button>
-                <button class="btn-primary" type="button" data-loader-target="#page-loader">Trimite</button>
+        <div class="member-hero__stats">
+            <div>
+                <strong>24/7</strong>
+                <span class="muted text-sm">cereri active</span>
             </div>
-        </form>
+            <div>
+                <strong>4.9</strong>
+                <span class="muted text-sm">scor mediu</span>
+            </div>
+            <div>
+                <strong>0</strong>
+                <span class="muted text-sm">comisioane</span>
+            </div>
+        </div>
+    </aside>
+</section>
+
+<section class="section">
+    <header class="section-header">
+        <div>
+            <div class="badge">Beneficii</div>
+            <h2>De ce s&#259; devii membru</h2>
+        </div>
+    </header>
+    <div class="member-benefits">
+        <article class="card member-benefit">
+            <div class="icon-circle">1</div>
+            <h3>Acces la cereri locale</h3>
+            <p class="muted">Prime&#537;ti cereri din ora&#537;ul t&#259;u, potrivite pe categoria ta de servicii.</p>
+        </article>
+        <article class="card member-benefit">
+            <div class="icon-circle">2</div>
+            <h3>Control total</h3>
+            <p class="muted">Decizi singur la ce cereri aplici &#537;i c&#226;nd e&#537;ti disponibil.</p>
+        </article>
+        <article class="card member-benefit">
+            <div class="icon-circle">3</div>
+            <h3>Profil de &#238;ncredere</h3>
+            <p class="muted">Construie&#537;ti reputa&#539;ie prin recenzii reale &#537;i activitate constant&#259;.</p>
+        </article>
     </div>
-</div>
+</section>
+
+<section class="section member-roadmap">
+    <div class="member-roadmap__head">
+        <div class="badge badge-ghost">Pa&#537;i de intrare</div>
+        <h2>Cum intri &#238;n re&#539;ea &#238;n 3 pa&#537;i</h2>
+    </div>
+    <div class="member-roadmap__grid">
+        <article class="member-roadmap__step">
+            <span class="member-roadmap__index">1</span>
+            <h3>Creezi cont</h3>
+            <p>Completezi datele de baz&#259; &#537;i serviciile pe care le oferi.</p>
+        </article>
+        <article class="member-roadmap__step">
+            <span class="member-roadmap__index">2</span>
+            <h3>Verificare profil</h3>
+            <p>Valid&#259;m informa&#539;iile pentru siguran&#539;a clien&#539;ilor &#537;i a membrilor.</p>
+        </article>
+        <article class="member-roadmap__step">
+            <span class="member-roadmap__index">3</span>
+            <h3>Prime&#537;ti cereri</h3>
+            <p>Aplici la lucr&#259;ri, discu&#539;i &#238;n chat &#537;i finalizezi interven&#539;ii.</p>
+        </article>
+    </div>
+</section>
+
+<section class="section">
+    <header class="section-header">
+        <div>
+            <div class="badge">Criterii</div>
+            <h2>Ce c&#259;ut&#259;m la membrii noi</h2>
+        </div>
+    </header>
+    <div class="member-criteria">
+        <article class="card member-criteria__item">
+            <h3>Seriozitate</h3>
+            <p class="muted">Respect pentru timp, comunicare clar&#259; &#537;i comportament profesionist.</p>
+        </article>
+        <article class="card member-criteria__item">
+            <h3>Disponibilitate</h3>
+            <p class="muted">R&#259;spuns rapid la cereri &#537;i implicare constant&#259; &#238;n activitate.</p>
+        </article>
+        <article class="card member-criteria__item">
+            <h3>Orientare spre ajutor</h3>
+            <p class="muted">Atitudine empatic&#259; &#537;i dorin&#539;&#259; de a oferi solu&#539;ii reale.</p>
+        </article>
+    </div>
+</section>
+
+<section class="section card glass section-slim">
+    <header class="section-header">
+        <div>
+            <div class="badge">&#206;ntreb&#259;ri rapide</div>
+            <h2>Ce se &#238;nt&#226;mpl&#259; dup&#259; aplicare</h2>
+        </div>
+    </header>
+    <div class="accordion">
+        <div class="accordion-item">
+            <button type="button" class="accordion-trigger">C&#226;t dureaz&#259; verificarea contului?</button>
+            <div class="accordion-panel">
+                <p>De regul&#259;, verificarea ini&#539;ial&#259; este finalizat&#259; &#238;n 24-48 de ore.</p>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <button type="button" class="accordion-trigger">Pot alege doar anumite tipuri de cereri?</button>
+            <div class="accordion-panel">
+                <p>Da, alegi categoriile &#537;i aplici doar la cererile care se potrivesc experien&#539;ei tale.</p>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <button type="button" class="accordion-trigger">Exist&#259; taxe pentru membri?</button>
+            <div class="accordion-panel">
+                <p>Nu percepem comisioane pe interven&#539;iile derulate prin platform&#259;.</p>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <button type="button" class="accordion-trigger">Cum primesc suport dac&#259; apare o problem&#259;?</button>
+            <div class="accordion-panel">
+                <p>Ai suport prin notific&#259;ri &#537;i comunicare direct&#259; cu echipa La u&#537;a ta.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section cta-band">
+    <div>
+        <h2>E&#537;ti gata s&#259; devii membru?</h2>
+        <p class="muted">Completeaz&#259; contul acum &#537;i intr&#259; &#238;n re&#539;eaua de prestatori verifica&#539;i.</p>
+    </div>
+    <div class="actions-row">
+        <a class="btn-primary" href="/accounts/signup/">Devino membru</a>
+        <a class="btn-ghost" href="/cum-functioneaza/">Vezi cum func&#539;ioneaz&#259;</a>
+    </div>
+</section>
+
 {% endblock %}

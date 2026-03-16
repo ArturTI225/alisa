@@ -1,19 +1,20 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Address, User, NotificationPreference
+from .models import Address, NotificationPreference, User
 
 
 class SignupForm(UserCreationForm):
     role = forms.ChoiceField(
         choices=[
             (User.Roles.CLIENT, "Client"),
-            (User.Roles.PROVIDER, "Prestator"),
+            (User.Roles.PROVIDER, "Worker"),
         ],
-        label="Rol",
+        label="Tip cont",
+        widget=forms.RadioSelect(attrs={"class": "role-choice__input"}),
     )
     phone = forms.CharField(required=False, label="Telefon")
-    city = forms.CharField(required=False, label="Oraș")
+    city = forms.CharField(required=False, label="Oras")
 
     class Meta:
         model = User
@@ -26,6 +27,12 @@ class SignupForm(UserCreationForm):
             "city",
             "role",
         ]
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Exista deja un cont cu acest email.")
+        return email
 
 
 class AddressForm(forms.ModelForm):

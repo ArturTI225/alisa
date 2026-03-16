@@ -12,6 +12,6 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):
-    list_display = ("id", "ad", "booking", "created_at")
-    search_fields = ("ad__title", "booking__id")
+    list_display = ("id", "ad", "booking", "help_request", "created_at")
+    search_fields = ("ad__title", "booking__id", "help_request__id", "help_request__title")
     filter_horizontal = ("participants",)

@@ -25,12 +25,6 @@ class Ad(models.Model):
     )
     city = models.CharField(max_length=120)
     district = models.CharField(max_length=120, blank=True)
-    budget_min = models.DecimalField(
-        max_digits=9, decimal_places=2, null=True, blank=True
-    )
-    budget_max = models.DecimalField(
-        max_digits=9, decimal_places=2, null=True, blank=True
-    )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
     )
@@ -75,9 +69,6 @@ class Offer(models.Model):
         limit_choices_to={"role": "provider"},
     )
     message = models.TextField(blank=True)
-    proposed_price = models.DecimalField(
-        max_digits=9, decimal_places=2, null=True, blank=True
-    )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )

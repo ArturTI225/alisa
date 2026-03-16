@@ -1,14 +1,22 @@
+const normalizeBase = (raw: string) => {
+  const trimmed = raw.replace(/\/+$/, "");
+  if (trimmed.endsWith("/v1")) {
+    return trimmed;
+  }
+  return `${trimmed}/v1`;
+};
+
 function getApiBase() {
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    return normalizeBase(process.env.NEXT_PUBLIC_API_URL);
   }
   // Client-side fallback: same host, port 8001 (Django dev)
   if (typeof window !== "undefined") {
     const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:8001/api`;
+    return normalizeBase(`${protocol}//${hostname}:8001/api`);
   }
   // Server-side fallback for build tools
-  return "http://127.0.0.1:8001/api";
+  return normalizeBase("http://127.0.0.1:8001/api");
 }
 
 export const API_BASE = getApiBase();

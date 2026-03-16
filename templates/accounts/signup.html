@@ -1,12 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Creeaza cont{% endblock %}
 {% block content %}
-<div class="section card">
-    <h1>Crează un cont nou</h1>
-    <form method="post">
+<div class="section card auth-card">
+    <h1>Creeaza un cont nou</h1>
+    <p class="muted">Alege tipul de cont si completeaza datele de baza.</p>
+    <form method="post" class="auth-form">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button class="btn-primary" type="submit">Înregistrează-te</button>
+        {% if form.non_field_errors %}
+            <div class="alert error">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <fieldset class="role-picker">
+            <legend>{{ form.role.label }}</legend>
+            <div class="role-picker__options">
+                {% for radio in form.role %}
+                    <label for="{{ radio.id_for_label }}" class="role-option">
+                        {{ radio.tag }}
+                        <span class="role-option__content">
+                            <strong>{{ radio.choice_label }}</strong>
+                            {% if forloop.first %}
+                                <span class="muted text-sm">Pentru rezervari si cereri de ajutor.</span>
+                            {% else %}
+                                <span class="muted text-sm">Pentru a primi comenzi si a lucra ca prestator.</span>
+                            {% endif %}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+            {% for error in form.role.errors %}
+                <div class="field-error">{{ error }}</div>
+            {% endfor %}
+        </fieldset>
+
+        {% for field in form %}
+            {% if field.name != "role" %}
+                <div class="field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="help-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="field-error">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        <button class="btn-primary" type="submit">Inregistreaza-te</button>
     </form>
 </div>
 {% endblock %}

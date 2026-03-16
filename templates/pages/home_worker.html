@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Panou voluntar{% endblock %}
+{% block content %}
+
+<section class="hero-spotlight hero-split">
+    <div class="hero-copy">
+        <div class="badge badge-glow">Panou voluntar</div>
+        <h1>Cauta cereri dupa domeniu</h1>
+        <p class="muted">
+            Alege domeniul, aplica la cerere si discuta cu solicitantul in chat.
+            Dupa ce clarificati problema, apasa <strong>Porneste ajutorul</strong> pentru status <strong>in desfasurare</strong>.
+        </p>
+        {% if worker_skill_category_ids %}
+            <div class="pill-row">
+                <span class="pill">Domenii recomandate pe baza abilitatilor tale</span>
+            </div>
+        {% endif %}
+    </div>
+    <div class="hero-panel">
+        <form method="get" action="{% url 'pages:home' %}">
+            {{ search_form.category.label_tag }}
+            {{ search_form.category }}
+            <div class="split-section">
+                <div>
+                    {{ search_form.urgency.label_tag }}
+                    {{ search_form.urgency }}
+                </div>
+                <div>
+                    {{ search_form.city.label_tag }}
+                    {{ search_form.city }}
+                </div>
+            </div>
+            {{ search_form.q.label_tag }}
+            {{ search_form.q }}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Cauta cereri</button>
+                <a class="btn-secondary" href="{% url 'pages:home' %}">Reset filtre</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="section">
+    <header class="section-header">
+        <div>
+            <div class="badge">Cereri</div>
+            <h2>Cereri disponibile</h2>
+        </div>
+    </header>
+    <div class="booking-grid">
+        {% for booking in open_bookings %}
+            <article class="booking-card">
+                <div class="booking-card__top">
+                    <strong>Cerere #{{ booking.id }} - {{ booking.service.name }}</strong>
+                    <span class="chip chip-ghost">{{ booking.status }}</span>
+                </div>
+                <p class="muted">{{ booking.description|truncatechars:220 }}</p>
+                <div class="summary-row">
+                    <span class="label">Solicitant</span>
+                    <span>{{ booking.client.display_name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Categorie</span>
+                    <span>{{ booking.service.category.name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Locatie</span>
+                    <span>{{ booking.address.city|default:"-" }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Interval</span>
+                    <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
+                </div>
+                <div class="actions-row">
+                    <form method="post" action="{% url 'bookings:accept' booking.id %}">
+                        {% csrf_token %}
+                        <button class="btn-primary slim" type="submit">Accepta cererea</button>
+                    </form>
+                    {% if booking.provider_id == user.id %}
+                        <a class="btn-secondary slim" href="{% url 'bookings:detail' booking.id %}">Detalii</a>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+        {% for req in open_requests %}
+            <article class="booking-card">
+                <div class="booking-card__top">
+                    <strong>#{{ req.id }} - {{ req.title }}</strong>
+                    <span class="chip chip-ghost">{{ req.status }}</span>
+                </div>
+                <p class="muted">{{ req.description|truncatechars:220 }}</p>
+                <div class="summary-row">
+                    <span class="label">Solicitant</span>
+                    <span>{{ req.created_by.display_name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Categorie</span>
+                    <span>{{ req.category.name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Locatie</span>
+                    <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Urgenta</span>
+                    <span>{{ req.urgency }}</span>
+                </div>
+                {% if req.id in applied_request_ids %}
+                    <span class="chip chip-ghost">Ai aplicat deja</span>
+                {% else %}
+                    <form method="post" action="{% url 'pages:help_request_apply' req.id %}">
+                        {% csrf_token %}
+                        <label for="message_{{ req.id }}" class="label">Mesaj pentru solicitant (optional)</label>
+                        <textarea id="message_{{ req.id }}" name="message" rows="2" placeholder="Pot incepe azi, am experienta pe acest domeniu."></textarea>
+                        <div class="actions-row">
+                            <button class="btn-primary slim" type="submit">Aplica</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </article>
+        {% endfor %}
+        {% if not open_bookings and not open_requests %}
+            <p class="muted">Nu exista cereri disponibile pentru filtrele selectate.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="section">
+    <header class="section-header">
+        <div>
+            <div class="badge">Istoric solicitant</div>
+            <h2>Cererile mele (ca solicitant)</h2>
+        </div>
+    </header>
+    <div class="booking-grid">
+        {% for req in my_client_requests %}
+            <article class="booking-card">
+                <div class="booking-card__top">
+                    <strong>#{{ req.id }} - {{ req.title }}</strong>
+                    <span class="chip chip-ghost">{{ req.status }}</span>
+                </div>
+                <p class="muted">{{ req.description|truncatechars:180 }}</p>
+                <div class="summary-row">
+                    <span class="label">Categorie</span>
+                    <span>{{ req.category.name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Locatie</span>
+                    <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Voluntar asignat</span>
+                    <span>{% if req.matched_volunteer %}{{ req.matched_volunteer.display_name }}{% else %}-{% endif %}</span>
+                </div>
+                {% if req.chat_conversation_id %}
+                    <div class="actions-row">
+                        <a class="btn-secondary slim" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Chat</a>
+                    </div>
+                {% endif %}
+            </article>
+        {% empty %}
+            <p class="muted">Nu ai cereri create de pe acest cont.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="section">
+    <header class="section-header">
+        <div>
+            <div class="badge">Istoric voluntar</div>
+            <h2>Ajutorul meu activ</h2>
+        </div>
+    </header>
+    <div class="booking-grid">
+        {% for req in assigned_requests %}
+            <article class="booking-card">
+                <div class="booking-card__top">
+                    <strong>#{{ req.id }} - {{ req.title }}</strong>
+                    <span class="chip chip-ghost">{{ req.status }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Solicitant</span>
+                    <span>{{ req.created_by.display_name }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Telefon solicitant</span>
+                    <span>{{ req.created_by.phone|default:"-" }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Adresa</span>
+                    <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
+                </div>
+                <div class="actions-row">
+                    {% if req.chat_conversation_id %}
+                        <a class="btn-secondary slim" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Chat</a>
+                    {% endif %}
+                    {% if req.status == 'matched' %}
+                        <form method="post" action="{% url 'pages:help_request_start' req.id %}">
+                            {% csrf_token %}
+                            <button class="btn-primary slim" type="submit">Porneste ajutorul</button>
+                        </form>
+                    {% elif req.status == 'in_progress' %}
+                        <span class="chip status-in_progress">In desfasurare</span>
+                    {% endif %}
+                </div>
+                {% if req.status_history %}
+                    <div class="card-neo">
+                        <strong>Istoric</strong>
+                        <ul class="booking-timeline">
+                            {% for item in req.status_history %}
+                                <li class="booking-timeline__item">
+                                    <span class="booking-timeline__time">{{ item.timestamp|slice:":16"|default:"-" }}</span>
+                                    <span>{{ item.status }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </article>
+        {% empty %}
+            <p class="muted">Nu ai cereri asignate inca.</p>
+        {% endfor %}
+    </div>
+
+    {% if applied_requests %}
+        <div class="section card">
+            <h3>Aplicatii trimise (in asteptare)</h3>
+            <div class="booking-grid">
+                {% for req in applied_requests %}
+                    <article class="booking-card">
+                        <div class="booking-card__top">
+                            <strong>#{{ req.id }} - {{ req.title }}</strong>
+                            <span class="chip chip-ghost">{{ req.status }}</span>
+                        </div>
+                        <p class="muted">{{ req.description|truncatechars:160 }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</section>
+
+{% endblock %}

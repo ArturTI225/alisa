@@ -21,13 +21,14 @@ const normalize = <T>(input: any): T[] => {
   return [];
 };
 
-export function useProviders(minRating = 4) {
+export function useProviders(minRating = 4, initialData?: any) {
   const { data, error, isLoading } = useSWR(
     `/providers/?ordering=-rating_avg&min_rating=${minRating}`,
-    apiGet<Provider[]>
+    apiGet<Provider[]>,
+    { fallbackData: initialData ? { data: initialData } : undefined }
   );
   return {
-    providers: normalize<Provider>(data?.data),
+    providers: normalize<Provider>(data?.data ?? initialData),
     error,
     isLoading,
   };

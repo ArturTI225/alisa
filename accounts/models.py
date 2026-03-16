@@ -15,6 +15,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=32, blank=True)
     city = models.CharField(max_length=128, blank=True)
     is_verified = models.BooleanField(default=False)
+    is_blocked = models.BooleanField(default=False)
     rating_avg = models.DecimalField(
         max_digits=4, decimal_places=2, default=0, blank=True
     )
@@ -82,11 +83,10 @@ class ProviderProfile(models.Model):
     skills = models.ManyToManyField(
         "services.Service", related_name="providers", blank=True
     )
-    hourly_rate = models.DecimalField(
-        max_digits=7, decimal_places=2, null=True, blank=True
-    )
     city = models.CharField(max_length=128, blank=True)
     experience_years = models.PositiveIntegerField(default=0)
+    total_hours_helped = models.PositiveIntegerField(default=0)
+    completed_requests = models.PositiveIntegerField(default=0)
     verification_status = models.CharField(
         max_length=20,
         choices=VerificationStatus.choices,
@@ -94,11 +94,34 @@ class ProviderProfile(models.Model):
     )
     verification_note = models.TextField(blank=True)
     availability_notes = models.TextField(blank=True)
+    badges = models.ManyToManyField("accounts.Badge", related_name="holders", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
         return f"Provider {self.user.display_name}"
+
+
+class ProviderMonthlyStat(models.Model):
+    provider = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="monthly_stats",
+        limit_choices_to={"role": User.Roles.PROVIDER},
+    )
+    year = models.IntegerField()
+    month = models.IntegerField()
+    completed_requests = models.PositiveIntegerField(default=0)
+    total_hours = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("provider", "year", "month")
+        ordering = ["-year", "-month"]
+
+    def __str__(self):
+        return f"{self.provider} {self.year}-{self.month:02d}"
 
 
 class FavoriteService(models.Model):
@@ -181,3 +204,111 @@ class NotificationPreference(models.Model):
 
     def __str__(self) -> str:
         return f"Prefs for {self.user}"
+
+
+class Report(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        IN_REVIEW = "in_review", "In review"
+        RESOLVED = "resolved", "Resolved"
+
+    reporter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="reports_made"
+    )
+    reported_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports_received",
+    )
+    help_request = models.ForeignKey(
+        "bookings.HelpRequest",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reports",
+    )
+    reason = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    admin_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        target = self.reported_user or self.help_request_id or "unknown"
+        return f"Report {self.pk} -> {target}"
+
+
+class Badge(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    criteria = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class AuditLog(models.Model):
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_actions",
+    )
+    action = models.CharField(max_length=128)
+    target_model = models.CharField(max_length=128, blank=True)
+    target_id = models.CharField(max_length=64, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class Verification(models.Model):
+    class Type(models.TextChoices):
+        EMAIL = "email", "Email"
+        PHONE = "phone", "Phone"
+        ID_DOCUMENT = "id_document", "ID document"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="verifications"
+    )
+    verification_type = models.CharField(
+        max_length=32, choices=Type.choices, default=Type.EMAIL
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    evidence = models.TextField(blank=True)
+    checked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verifications_checked",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} - {self.verification_type} ({self.status})"

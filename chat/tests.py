@@ -31,7 +31,7 @@ class ConversationAPITests(APITestCase):
         self.client.login(username="client", password="pass123")
 
     def test_create_conversation_and_message(self):
-        convo_url = reverse("conversation-list")
+        convo_url = reverse("v1:conversation-list")
         resp = self.client.post(
             convo_url,
             {"ad": self.ad.id, "participant_ids": [self.provider.id]},
@@ -39,7 +39,7 @@ class ConversationAPITests(APITestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.data)
         convo_id = resp.data["id"]
-        msg_url = reverse("chatmessage-list")
+        msg_url = reverse("v1:chatmessage-list")
         resp_msg = self.client.post(
             msg_url,
             {"conversation": convo_id, "text": "Salut"},

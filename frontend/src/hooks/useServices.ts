@@ -5,16 +5,24 @@ export type Service = {
   id: number;
   name: string;
   description: string;
-  base_price: string;
-  price_type: string;
-  category: { name: string };
+  duration_estimate_minutes: number;
+  category: { name?: string };
 };
 
-export function useServices() {
-  const { data, error, isLoading } = useSWR("/services/", apiGet<Service[]>);
+const normalize = <T>(input: any): T[] => {
+  if (!input) return [];
+  if (Array.isArray(input)) return input;
+  if (input.results) return input.results;
+  return [];
+};
+
+export function useServices(initialData?: any) {
+  const { data, error, isLoading } = useSWR("/services/", apiGet<Service[]>, {
+    fallbackData: initialData ? { data: initialData } : undefined,
+  });
   return {
-    services: data?.data ?? [],
-    error,
+    services: normalize<Service>(data?.data ?? initialData),
+    error: error?.message || data?.error,
     isLoading,
   };
 }

@@ -22,6 +22,13 @@ class Conversation(models.Model):
         null=True,
         blank=True,
     )
+    help_request = models.ForeignKey(
+        "bookings.HelpRequest",
+        related_name="conversations",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="conversations", blank=True
     )

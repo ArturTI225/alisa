@@ -6,8 +6,6 @@ export type Ad = {
   title: string;
   city: string;
   is_urgent: boolean;
-  budget_min?: string;
-  budget_max?: string;
   preferred_date?: string;
 };
 
@@ -18,10 +16,12 @@ const normalize = <T>(input: any): T[] => {
   return [];
 };
 
-export function useUrgentAds() {
-  const { data, error, isLoading } = useSWR("/ads/?is_urgent=true", apiGet<Ad[]>);
+export function useUrgentAds(initialData?: any) {
+  const { data, error, isLoading } = useSWR("/ads/?is_urgent=true", apiGet<Ad[]>, {
+    fallbackData: initialData ? { data: initialData } : undefined,
+  });
   return {
-    ads: normalize<Ad>(data?.data),
+    ads: normalize<Ad>(data?.data ?? initialData),
     error,
     isLoading,
   };

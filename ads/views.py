@@ -44,12 +44,6 @@ class AdViewSet(viewsets.ModelViewSet):
         status_param = params.get("status")
         if status_param:
             qs = qs.filter(status=status_param)
-        budget_min = params.get("budget_min")
-        if budget_min:
-            qs = qs.filter(budget_min__gte=budget_min)
-        budget_max = params.get("budget_max")
-        if budget_max:
-            qs = qs.filter(budget_max__lte=budget_max)
         min_provider_rating = params.get("min_provider_rating")
         if min_provider_rating:
             qs = qs.filter(

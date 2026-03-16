@@ -28,14 +28,12 @@ class AdOfferAPITests(APITestCase):
         self.client.login(username="client", password="pass123")
 
     def test_create_ad_and_filter_urgent(self):
-        url = reverse("ad-list")
+        url = reverse("v1:ad-list")
         payload = {
             "title": "Montaj priza",
             "description": "Urgent, apa in perete",
             "category_id": self.category.id,
             "city": "Bucharest",
-            "budget_min": "100",
-            "budget_max": "200",
             "is_urgent": True,
             "deadline": (timezone.now() + timedelta(days=1)).isoformat(),
         }
@@ -57,10 +55,10 @@ class AdOfferAPITests(APITestCase):
         )
         self.client.logout()
         self.client.login(username="provider", password="pass123")
-        offer_url = reverse("offer-list")
+        offer_url = reverse("v1:offer-list")
         resp = self.client.post(
             offer_url,
-            {"ad": ad.id, "message": "Pot veni azi", "proposed_price": "150"},
+            {"ad": ad.id, "message": "Pot veni azi"},
             format="json",
         )
         self.assertEqual(resp.status_code, 201, resp.data)
@@ -68,7 +66,7 @@ class AdOfferAPITests(APITestCase):
 
         self.client.logout()
         self.client.login(username="client", password="pass123")
-        accept_url = reverse("offer-accept", args=[offer_id])
+        accept_url = reverse("v1:offer-accept", args=[offer_id])
         accept_resp = self.client.post(accept_url)
         self.assertEqual(accept_resp.status_code, 200, accept_resp.data)
         offer = Offer.objects.get(pk=offer_id)

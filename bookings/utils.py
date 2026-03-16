@@ -47,3 +47,44 @@ def validate_provider_slot(provider, start, duration_minutes: int, booking=None)
             raise ValidationError(
                 "Prestatorul este deja ocupat in intervalul ales."
             )
+
+
+def ensure_help_request_conversation(help_request):
+    """
+    Ensure there is one conversation attached to a help request
+    and both participants are present in the conversation.
+    """
+    if not help_request:
+        return None
+
+    from chat.models import Conversation
+
+    conversation, _ = Conversation.objects.get_or_create(
+        help_request=help_request
+    )
+    participant_ids = [
+        help_request.created_by_id,
+        help_request.matched_volunteer_id,
+    ]
+    participant_ids = [pid for pid in participant_ids if pid]
+    if participant_ids:
+        conversation.participants.add(*participant_ids)
+    return conversation
+
+
+def ensure_booking_conversation(booking):
+    """
+    Ensure there is one conversation attached to a booking
+    and both participants are present in the conversation.
+    """
+    if not booking:
+        return None
+
+    from chat.models import Conversation
+
+    conversation, _ = Conversation.objects.get_or_create(booking=booking)
+    participant_ids = [booking.client_id, booking.provider_id]
+    participant_ids = [pid for pid in participant_ids if pid]
+    if participant_ids:
+        conversation.participants.add(*participant_ids)
+    return conversation

@@ -4,14 +4,13 @@
     {% load static %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sot la ora{% endblock %}</title>
+    <title>{% block title %}La u&#351;a ta{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
     <script src="{% static 'js/app.js' %}" defer></script>
 </head>
@@ -22,27 +21,43 @@
     </div>
     <header class="top-nav">
         <div class="brand">
-            <a href="/" class="logo">Sot la ora</a>
+            <a href="/" class="logo" aria-label="La usa ta">
+                <img src="{% static 'images/logo.png' %}" alt="La usa ta logo">
+            </a>
         </div>
-        <nav>
-            <a href="/">Acasa</a>
-            <a href="/services/">Servicii</a>
-            <a href="/cum-functioneaza/">Cum functioneaza</a>
-            <a href="/devino-sot-la-ora/">Devino sot la ora</a>
-            <a href="/bookings/new/" class="cta">Rezerva</a>
-            {% if user.is_authenticated %}
-                <a href="/bookings/">Comenzile mele</a>
-                {% if user.is_provider %}<a href="/bookings/provider/dashboard/">Dashboard prestator</a>{% endif %}
-                <a href="/accounts/favorites/">Favorite</a>
-                <a href="/accounts/notifications/">Notificări</a>
-                {% if user.is_staff %}<a href="/bookings/disputes/">Dispute</a>{% endif %}
-                <a href="/accounts/profile/">Profil</a>
-                <a href="/accounts/logout/">Logout</a>
-            {% else %}
-                <a href="/accounts/login/">Login</a>
-                <a href="/accounts/signup/" class="cta">Creeaza cont</a>
-            {% endif %}
+        <nav class="nav-main">
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">Acas&#259;</a>
+            <a href="/services/" class="{% if '/services/' in request.path %}active{% endif %}">Categorii de ajutor</a>
+            <a href="/cum-functioneaza/" class="{% if request.path == '/cum-functioneaza/' %}active{% endif %}">Cum func&#539;ioneaz&#259;</a>
+            <a href="{% url 'pages:apply' %}" class="{% if request.path == '/devino-membru/' or request.path == '/devino-sot-la-ora/' %}active{% endif %}">Devino membru</a>
+            <a href="/bookings/new/" class="cta{% if '/bookings/' in request.path %} active{% endif %}">Cere ajutor</a>
         </nav>
+        <div class="nav-actions">
+            {% if user.is_authenticated %}
+                <details class="nav-user">
+                    <summary>
+                        <span class="avatar nav-avatar">{{ user.display_name|first|upper }}</span>
+                        <span class="nav-user__name">{{ user.display_name }}</span>
+                    </summary>
+                    <div class="nav-user__panel">
+                        <a href="/bookings/">Ajutorul meu</a>
+                        <a href="/chat/">Chat</a>
+                        {% if user.is_provider %}<a href="/bookings/provider/dashboard/">Panou voluntar</a>{% endif %}
+                        <a href="/accounts/favorites/">Favorite</a>
+                        <a href="/accounts/notifications/">Notific&#259;ri</a>
+                        {% if user.is_staff %}<a href="/bookings/disputes/">Dispute</a>{% endif %}
+                        <a href="/accounts/profile/">Profil</a>
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-user__logout">Ie&#537;ire</button>
+                        </form>
+                    </div>
+                </details>
+            {% else %}
+                <a class="btn-ghost" href="/accounts/login/">Autentificare</a>
+                <a class="btn-primary" href="/accounts/signup/">Creeaz&#259; cont</a>
+            {% endif %}
+        </div>
     </header>
     <main class="page">
         {% if messages %}
@@ -55,21 +70,10 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <div class="notif-bell" id="notif-bell">
-            <div class="bell-icon">🔔</div>
-            <div class="notif-count" id="notif-count" style="display:none;"></div>
-            <div class="notif-panel glass" id="notif-panel">
-                <div class="notif-header">
-                    <strong>Notificări</strong>
-                    <a href="#" id="notif-mark-all">Marchează citit</a>
-                </div>
-                <div id="notif-list" class="notif-list"></div>
-            </div>
-        </div>
         {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
-        <div>© {% now "Y" %} Sot la ora – ajutor rapid pentru casa ta.</div>
+        <div>(c) {% now "Y" %} La u&#351;a ta - ajutor rapid pentru casa ta.</div>
     </footer>
 </body>
 </html>

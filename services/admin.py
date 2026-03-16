@@ -13,6 +13,6 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
-    list_display = ("name", "category", "price_type", "base_price", "is_active")
-    list_filter = ("category", "price_type", "is_active")
+    list_display = ("name", "category", "duration_estimate_minutes", "is_active")
+    list_filter = ("category", "is_active")
     search_fields = ("name", "description")

@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import generic, View
+from django.utils import timezone
 from rest_framework import permissions, viewsets, filters
 
 from bookings.models import Booking
@@ -12,18 +13,24 @@ from reviews.models import Review
 from .forms import SignupForm, NotificationPreferenceForm
 from .models import (
     Address,
+    AuditLog,
     FavoriteProvider,
     FavoriteService,
     Notification,
     NotificationPreference,
+    Report,
     User,
+    Verification,
 )
+from .utils import notify_user, log_audit
 from .serializers import (
     AddressSerializer,
     FavoriteProviderSerializer,
     FavoriteServiceSerializer,
     NotificationSerializer,
     NotificationPreferenceSerializer,
+    VerificationSerializer,
+    ReportSerializer,
     ProviderProfileSerializer,
 )
 
@@ -98,7 +105,7 @@ class ProviderViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     search_fields = ["user__username", "bio", "skills__name", "city"]
-    ordering_fields = ["user__rating_avg", "hourly_rate", "experience_years"]
+    ordering_fields = ["user__rating_avg", "experience_years"]
 
     def get_queryset(self):
         qs = (
@@ -172,6 +179,40 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if serializer.instance.user != self.request.user:
             raise PermissionDenied("Nu ai acces.")
+        serializer.save()
+
+
+class ReportViewSet(viewsets.ModelViewSet):
+    serializer_class = ReportSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "reports"
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Report.objects.select_related("reporter", "reported_user", "help_request")
+        return Report.objects.filter(reporter=user).select_related("reported_user", "help_request")
+
+    def perform_create(self, serializer):
+        serializer.save(reporter=self.request.user)
+        reported_user = serializer.instance.reported_user
+        if reported_user:
+            recent_count = Report.objects.filter(
+                reported_user=reported_user, created_at__gte=timezone.now() - timezone.timedelta(days=30)
+            ).count()
+            if recent_count >= 3:
+                admin = User.objects.filter(is_staff=True).order_by("id").first()
+                if admin:
+                    notify_user(
+                        admin,
+                        notif_type=None,
+                        title="Alertă abuz",
+                        body=f"Utilizator raportat frecvent: {reported_user.username}",
+                    )
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_staff:
+            raise permissions.PermissionDenied("Doar adminul poate edita raportul.")
         serializer.save()
 
 
@@ -254,3 +295,32 @@ class NotificationPreferenceView(LoginRequiredMixin, generic.FormView):
         form.save()
         messages.success(self.request, "Preferințe salvate.")
         return super().form_valid(form)
+
+
+# --- API: Verification ---
+
+
+class VerificationViewSet(viewsets.ModelViewSet):
+    serializer_class = VerificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Verification.objects.select_related("user", "checked_by")
+        return Verification.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user, status=Verification.Status.PENDING)
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_staff:
+            raise permissions.PermissionDenied("Doar adminul poate aproba/verifica.")
+        instance = serializer.save(checked_by=self.request.user)
+        log_audit(
+            self.request.user,
+            "verification_decision",
+            instance,
+            {"status": instance.status},
+            request=self.request,
+        )

@@ -15,23 +15,29 @@ from .serializers import ChatMessageSerializer, ConversationSerializer
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "chat"
 
     def get_queryset(self):
         user = self.request.user
         return (
             Conversation.objects.filter(participants=user)
-            .select_related("ad", "booking")
+            .select_related("ad", "booking", "help_request")
             .prefetch_related("participants")
         )
 
     def perform_create(self, serializer):
         convo = serializer.save()
         convo.participants.add(self.request.user)
+        if convo.help_request:
+            convo.participants.add(convo.help_request.created_by_id)
+            if convo.help_request.matched_volunteer_id:
+                convo.participants.add(convo.help_request.matched_volunteer_id)
 
 
 class ChatMessageViewSet(viewsets.ModelViewSet):
     serializer_class = ChatMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "chat"
 
     def get_queryset(self):
         user = self.request.user
@@ -64,7 +70,7 @@ class ConversationListView(LoginRequiredMixin, generic.ListView):
     def get_queryset(self):
         return (
             Conversation.objects.filter(participants=self.request.user)
-            .select_related("ad", "booking")
+            .select_related("ad", "booking", "help_request")
             .prefetch_related("participants")
             .order_by("-created_at")
         )
@@ -78,7 +84,7 @@ class ConversationDetailView(LoginRequiredMixin, generic.DetailView):
     def get_queryset(self):
         return (
             Conversation.objects.filter(participants=self.request.user)
-            .select_related("ad", "booking")
+            .select_related("ad", "booking", "help_request")
             .prefetch_related("participants", "messages__sender")
         )
 

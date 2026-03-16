@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from accounts.models import Notification, NotificationPreference
+from services.models import ServiceCategory
 
 
 class Availability(models.Model):
@@ -74,12 +75,6 @@ class Booking(models.Model):
             "Reprogramare solicitata",
         )
 
-    class PaymentStatus(models.TextChoices):
-        UNPAID = "unpaid", "Neplatit"
-        AUTHORIZED = "authorized", "Autorizat"
-        PAID = "paid", "Platita"
-        REFUNDED = "refunded", "Rambursat"
-
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name="client_bookings",
@@ -106,22 +101,10 @@ class Booking(models.Model):
     description = models.TextField()
     scheduled_start = models.DateTimeField(default=timezone.now)
     duration_minutes = models.PositiveIntegerField(default=60)
-    price_estimated = models.DecimalField(
-        max_digits=8, decimal_places=2, default=0
-    )
-    price_final = models.DecimalField(
-        max_digits=8, decimal_places=2, null=True, blank=True
-    )
-    extra_costs = models.JSONField(default=dict, blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.PENDING,
-    )
-    payment_status = models.CharField(
-        max_length=20,
-        choices=PaymentStatus.choices,
-        default=PaymentStatus.UNPAID,
     )
     client_confirmed_at = models.DateTimeField(null=True, blank=True)
     client_confirmation_note = models.CharField(
@@ -404,6 +387,148 @@ class BookingAttachment(models.Model):
 
     def __str__(self) -> str:
         return f"Attachment {self.pk} for booking {self.booking_id}"
+
+
+class HelpRequest(models.Model):
+    class Urgency(models.TextChoices):
+        LOW = "low", "Low"
+        MEDIUM = "medium", "Medium"
+        HIGH = "high", "High"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_REVIEW = "in_review", "In review"
+        MATCHED = "matched", "Matched"
+        IN_PROGRESS = "in_progress", "In progress"
+        DONE = "done", "Done"
+        CANCELLED = "cancelled", "Cancelled"
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="help_requests",
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    category = models.ForeignKey(
+        ServiceCategory,
+        on_delete=models.PROTECT,
+        related_name="help_requests",
+    )
+    city = models.CharField(max_length=120, blank=True)
+    region = models.CharField(max_length=120, blank=True)
+    urgency = models.CharField(
+        max_length=10, choices=Urgency.choices, default=Urgency.MEDIUM
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
+    )
+    matched_volunteer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="matched_requests",
+        limit_choices_to={"role": "provider"},
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    canceled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=255, blank=True)
+    status_history = models.JSONField(default=list, blank=True)
+    is_locked = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "urgency", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"HelpRequest #{self.pk} - {self.title}"
+
+
+def help_attachment_path(instance, filename: str) -> str:
+    return f"help_requests/{instance.help_request_id}/{filename}"
+
+
+class HelpRequestAttachment(models.Model):
+    help_request = models.ForeignKey(
+        HelpRequest, related_name="attachments", on_delete=models.CASCADE
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="help_request_attachments",
+    )
+    file = models.FileField(upload_to=help_attachment_path)
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Attachment {self.pk} for help_request {self.help_request_id}"
+
+
+class CompletionCertificate(models.Model):
+    help_request = models.OneToOneField(
+        HelpRequest, on_delete=models.CASCADE, related_name="completion_certificate"
+    )
+    volunteer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="completion_certificates",
+    )
+    issued_at = models.DateTimeField(auto_now_add=True)
+    pdf = models.FileField(upload_to="certificates/", blank=True, null=True)
+    summary = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+
+
+class VolunteerApplication(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    help_request = models.ForeignKey(
+        HelpRequest, related_name="applications", on_delete=models.CASCADE
+    )
+    volunteer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="volunteer_applications",
+        limit_choices_to={"role": "provider"},
+    )
+    message = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["help_request"],
+                condition=models.Q(status="accepted"),
+                name="unique_accepted_application_per_help_request",
+            )
+        ]
+        unique_together = ("help_request", "volunteer")
+
+    def __str__(self) -> str:
+        return f"Application {self.pk} for help_request {self.help_request_id}"
 
 
 def dispute_upload_path(instance, filename: str) -> str:

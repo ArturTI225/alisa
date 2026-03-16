@@ -1,14 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Conversație #{{ conversation.id }}{% endblock %}
+{% block title %}Conversatie #{{ conversation.id }}{% endblock %}
 {% block content %}
 <div class="section card glass">
     <div class="list-hero">
         <div>
-            <p class="muted">Conversație</p>
+            <p class="muted">Conversatie</p>
             <h1>#{{ conversation.id }}</h1>
             <div class="pill-row">
+                {% if conversation.help_request %}
+                    <span class="chip chip-ghost">Cerere #{{ conversation.help_request.id }}: {{ conversation.help_request.title }}</span>
+                {% endif %}
                 {% if conversation.ad %}
-                    <span class="chip chip-ghost">Anunț: {{ conversation.ad.title }}</span>
+                    <span class="chip chip-ghost">Anunt: {{ conversation.ad.title }}</span>
                     {% if conversation.ad.is_urgent %}<span class="chip status-pending">Urgent</span>{% endif %}
                 {% endif %}
                 {% if conversation.booking %}
@@ -17,21 +20,21 @@
             </div>
         </div>
         <div>
-            <a class="btn-secondary" href="{% url 'chat:conversation_list' %}">Înapoi</a>
+            <a class="btn-secondary" href="{% url 'chat:conversation_list' %}">Inapoi</a>
         </div>
     </div>
 
     <div class="messages-thread">
         {% for msg in conversation.messages.all %}
             <div class="message-card {% if msg.sender == user %}mine{% endif %}">
-                <div class="muted">{{ msg.sender.display_name }} · {{ msg.created_at|date:"d M H:i" }}</div>
+                <div class="muted">{{ msg.sender.display_name }} - {{ msg.created_at|date:"d M H:i" }}</div>
                 <p>{{ msg.text|linebreaks }}</p>
                 {% if msg.attachment %}
-                    <a href="{{ msg.attachment.url }}" class="chip chip-ghost">Atașament</a>
+                    <a href="{{ msg.attachment.url }}" class="chip chip-ghost">Atasament</a>
                 {% endif %}
             </div>
         {% empty %}
-            <p class="muted">Niciun mesaj încă.</p>
+            <p class="muted">Niciun mesaj inca.</p>
         {% endfor %}
     </div>
 

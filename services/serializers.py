@@ -19,8 +19,6 @@ class ServiceSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "description",
-            "price_type",
-            "base_price",
             "duration_estimate_minutes",
             "category",
         ]
