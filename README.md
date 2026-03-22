@@ -1,237 +1,193 @@
-﻿# La usa ta- platforma comunitara de ajutor (Django + DRF)
+# LaUsaTa
 
-Platforma sociala (non-comerciala) pentru conectarea solicitantilor cu voluntari.
-Fluxuri active in cod: cereri de ajutor, aplicatii voluntari, chat, notificari, review, verificari, rapoarte si moderare.
+LaUsaTa este o platforma comunitara pentru cereri de ajutor, voluntariat si servicii locale.
+Proiectul este construit in Django 5, cu API REST, WebSockets, dashboard-uri dedicate pentru provideri si fluxuri complete pentru help requests si bookings programate.
 
-Actualizat pe baza codului existent la: **16 martie 2026**.
+## Ce include versiunea curenta
 
-## 1) Stare reala a proiectului (ce se foloseste efectiv)
+- autentificare si profiluri pe roluri: client, provider, admin
+- pagini home diferite in functie de rol
+- catalog de servicii si profiluri de provider
+- favorite pentru servicii si provideri
+- flux complet help request: creare, aplicare, acceptare, start, finalizare, moderare
+- flux complet bookings programate: creare, accept/decline, reprogramare, start, finalizare, confirmare/disputa
+- booking attachments, reguli recurente, calendar feed ICS, export activitate CSV
+- dashboard provider cu statistici si activitate
+- chat cu conversatii si mesaje, plus notificari live
+- notificari, preferinte de notificare, rapoarte, verificari, audit log
+- reviews cu recalcul automat de rating pentru provider
+- health endpoints, schema OpenAPI, Django admin
 
-| Componenta | Status real | Verificat in cod | Concluzie |
-|---|---|---|---|
-| Django (apps + template UI) | Activ principal | `config/settings.py`, `config/urls.py`, `templates/**` | Interfata principala rulata azi este cea Django Templates |
-| DRF API (`/api/v1/`) | Activ | `config/api_router.py`, ViewSet-urile din apps | API-ul este folosit si de UI intern, si de clienti externi |
-| Flux `HelpRequest` + `VolunteerApplication` | Activ | `bookings/models.py`, `bookings/views.py`, `pages/views.py`, `templates/pages/home_client.html`, `templates/pages/home_worker.html` | Fluxul social exista si este functional |
-| Flux `Booking` | Activ (inca puternic folosit) | `bookings/urls.py`, `bookings/views.py`, `templates/bookings/**`, link-uri in `templates/base.html` | Nu e "mort"; este in productie in UI curent |
-| `ads` / `offers` | Activ partial | `ads/views.py`, context in `pages/views.py` | Folosite pentru anunturi/urgente si compatibilitate |
-| Next.js (`frontend/`) | Optional, separat | `frontend/package.json`, lipsa referintelor din `config/urls.py`/`templates` | **Nu este integrat direct in runtime-ul Django** |
-| Celery | Activ logic, sync by default | `config/celery.py`, `bookings/tasks.py`, `CELERY_TASK_ALWAYS_EAGER=True` | Task-urile ruleaza implicit sincron in dev |
-| Redis | Optional | folosit doar daca rulezi async real cu Celery | Nu e obligatoriu in modul implicit |
-| Sentry | Optional | activ doar daca exista `SENTRY_DSN` | by default este dezactivat |
-| Channels/WebSocket push | Optional/neactiv implicit | fallback in `accounts/utils.py`, pachetul `channels` nu e in `requirements.txt` | notificarile WS nu sunt obligatorii si nu pornesc implicit |
-| `payments` | Eliminat | nu apare in `INSTALLED_APPS`; cautare repo | nu face parte din proiectul curent |
+## De ce exista ambele: Help Requests vs Bookings
 
-### Verdict pentru Next.js
-- `frontend/` exista ca aplicatie separata (client optional).
-- Nu este montat in URL-urile Django si nu este necesar pentru functionarea backend + UI principal.
-- Daca folosesti doar Django Templates, proiectul functioneaza complet fara Next.js.
+Pe scurt, nu sunt acelasi lucru. Platforma acopera doua tipuri diferite de nevoie:
 
-## 2) Arhitectura curenta
+- Help Request = cerere de ajutor voluntar, porneste fara provider fix, cu aplicatii de la voluntari si selectie ulterioara.
+- Booking = cerere programata de serviciu, orientata pe slot de timp, calendar, reprogramari si flux operational de executie.
 
-### Backend principal
-- Django 5.2 + DRF
-- Apps instalate: `accounts`, `services`, `bookings`, `ads`, `chat`, `reviews`, `pages`
-- UI server-rendered: Django Templates (`templates/`) + asset-uri statice (`static/`)
-- API versionat: `/api/v1/` (+ compatibilitate temporara `/api/`)
+Diferente cheie:
 
-### Persistenta si fisiere
-- DB implicita in dev: SQLite (`db.sqlite3`)
-- DB alternativa: PostgreSQL via `DATABASE_URL`
-- Fisiere media locale in dev (`media/`)
-- Upload constraints:
-  - max `25MB`
-  - allowlist MIME (imagini/video/pdf)
-  - hook antivirus optional (`VIRUS_SCAN_HANDLER`)
+- Initiere:
+Help Request este publicata de client pentru comunitate; Booking este creat ca o cerere programata cu detalii de executie (service, adresa, interval).
+- Potrivire provider:
+Help Request foloseste Volunteer Applications si apoi acceptarea unei aplicatii; Booking poate porni direct cu provider atribuit sau gasit de sistem.
+- Flux de status:
+Help Request: open, in_review, matched, in_progress, done, cancelled.
+Booking: pending, confirmed, in_progress, awaiting_client, completed, canceled, declined, disputed, reschedule_requested.
+- Functionalitati dedicate:
+Help Request are lock/unlock de admin, moderare si certificat de completare; Booking are dispute workflow, recuring rules, calendar ICS si export CSV pentru activitate provider.
+- Scop de produs:
+Help Request acopera componenta sociala/non-comerciala de voluntariat; Booking acopera livrarea programata a serviciilor.
 
-### Async / observabilitate
-- Celery configurat (`config/celery.py`)
-- Redis folosit ca broker/backend cand rulezi async real
-- Logging structurat in consola
-- Sentry optional
+## Stack tehnic
 
-## 3) Fluxuri functionale in produs
+- Python 3.13
+- Django 5.2
+- Django REST Framework 3.16
+- Channels + Daphne (ASGI)
+- Celery (default eager in dezvoltare)
+- SQLite implicit, PostgreSQL optional prin DATABASE_URL
+- Templates server-side (fara frontend separat React/Next)
 
-### A. Flux social (Help Request)
-1. Solicitantul creeaza `HelpRequest`
-2. Voluntarii trimit `VolunteerApplication`
-3. Solicitant/admin accepta o aplicatie
-4. Cererea trece `matched -> in_progress -> done`
-5. Se pot genera notificari, review, certificat si actualizare statistici voluntar
+Aplicatii Django principale:
 
-Statusuri `HelpRequest`:
-- `open`, `in_review`, `matched`, `in_progress`, `done`, `cancelled`
+- accounts
+- services
+- bookings
+- ads
+- chat
+- reviews
+- pages
 
-Statusuri `VolunteerApplication`:
-- `pending`, `accepted`, `rejected`, `withdrawn`
+## Rute web importante
 
-### B. Flux booking (inca activ in UI)
-- Creare booking, accept/decline, start/complete
-- Reprogramari, dispute, atasamente, reguli recurente, export ICS
-- Dashboard voluntar + CSV
+- /
+- /admin/
+- /accounts/signup/
+- /accounts/login/
+- /accounts/profile/
+- /accounts/favorites/
+- /accounts/notifications/
+- /services/
+- /bookings/
+- /bookings/new/
+- /bookings/provider/dashboard/
+- /bookings/calendar.ics
+- /chat/
+- /help-requests/create/
+- /help-requests/<id>/apply/
+- /help-requests/<id>/start/
+- /applications/
+- /applications/<id>/accept/
+- /health/
+- /healthz/
 
-Nota: in documentatie interna fluxul social este directia dorita, dar in codul curent fluxul booking este inca intens utilizat in paginile Django.
+## API
 
-## 4) Setup local (backend)
+Baza API:
+
+- /api/v1/
+- /api/v1/schema/
+
+Resurse principale:
+
+- /api/v1/service-categories/
+- /api/v1/services/
+- /api/v1/providers/
+- /api/v1/bookings/
+- /api/v1/help-requests/
+- /api/v1/volunteer-applications/
+- /api/v1/conversations/
+- /api/v1/chat-messages/
+- /api/v1/reviews/
+- /api/v1/verifications/
+- /api/v1/reports/
+- /api/v1/notifications/
+- /api/v1/notification-preferences/
+- /api/v1/favorite-services/
+- /api/v1/favorite-providers/
+- /api/v1/addresses/
+- /api/v1/ads/
+- /api/v1/offers/
+
+Actiuni custom importante:
+
+- POST /api/v1/help-requests/{id}/cancel/
+- POST /api/v1/help-requests/{id}/start/
+- POST /api/v1/help-requests/{id}/complete/
+- POST /api/v1/help-requests/{id}/send_to_review/
+- POST /api/v1/help-requests/{id}/approve/
+- POST /api/v1/help-requests/{id}/reject/
+- POST /api/v1/help-requests/{id}/lock/
+- POST /api/v1/help-requests/{id}/unlock/
+- GET /api/v1/help-requests/{id}/certificate/
+- POST /api/v1/volunteer-applications/{id}/accept/
+- POST /api/v1/volunteer-applications/{id}/reject/
+- POST /api/v1/volunteer-applications/{id}/withdraw/
+
+Compatibilitate temporara:
+
+- /api/ este mapat catre acelasi router (in paralel cu /api/v1/)
+
+## WebSocket endpoints
+
+- ws/notifications/
+- ws/chat/<conversation_id>/
+
+## Setup local rapid
 
 ```bash
 python -m venv .venv
-# Windows
 .venv\Scripts\activate
-# Linux/macOS
-# source .venv/bin/activate
-
 pip install -r requirements.txt
-copy .env.example .env   # Linux/macOS: cp .env.example .env
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Verificare rapida:
-```bash
-python manage.py check
+Important:
+
+- fisierul .env.example nu este versionat in repo
+- creeaza manual fisierul .env in radacina proiectului
+
+Exemplu minim .env:
+
+```env
+SECRET_KEY=dev-secret-key-change-me
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+DATABASE_URL=sqlite:///db.sqlite3
+CELERY_TASK_ALWAYS_EAGER=True
+CELERY_BROKER_URL=redis://localhost:6379/0
 ```
 
-## 5) Variabile de mediu
+## Optional pentru productie
 
-Minim necesare:
-- `DEBUG`
-- `SECRET_KEY`
-- `ALLOWED_HOSTS`
-- `DATABASE_URL`
+Redis channel layer (mai multe instante ASGI):
 
-Optionale importante:
-- `CELERY_BROKER_URL` (implicit `redis://localhost:6379/0`)
-- `CELERY_TASK_ALWAYS_EAGER` (implicit `True`)
-- `CSRF_TRUSTED_ORIGINS`
-- `SENTRY_DSN`
-- `SENTRY_TRACES_SAMPLE_RATE`
-- `DJANGO_LOG_LEVEL`
+```bash
+pip install channels-redis
+```
 
-## 6) Celery / Redis (cand chiar ai nevoie)
+PDF rendering real pentru certificate (in loc de fallback):
 
-Implicit (dev): task-urile ruleaza sincron.
+```bash
+pip install weasyprint fonttools tinycss2 cssselect2 pydyf pyphen
+```
 
-Pentru async real:
-1. setezi `CELERY_TASK_ALWAYS_EAGER=False`
-2. pornesti Redis
-3. pornesti worker:
+Celery worker (cand CELERY_TASK_ALWAYS_EAGER=False):
 
 ```bash
 celery -A config worker -l info
 ```
 
-## 7) Frontend Next.js (status si folosire)
-
-Folderul `frontend/` este un client separat, optional.
-
-### Cand il folosesti
-- vrei un frontend React/Next separat de template-urile Django
-- vrei SSR in Next pentru pagini publice
-
-### Cand NU ai nevoie de el
-- folosesti UI-ul Django existent (`templates/`)
-- vrei stack simplu backend+templates
-
-### Rulare Next.js (optional)
+## Verificare rapida
 
 ```bash
-cd frontend
-copy .env.local.example .env.local   # Linux/macOS: cp .env.local.example .env.local
-npm install
-npm run dev
+python manage.py check
+python manage.py test pages.tests bookings.tests
 ```
 
-Valoare recomandata:
-- `NEXT_PUBLIC_API_URL=http://127.0.0.1:8001/api`
+## Note UI
 
-Daca rulezi si Next.js (port 8000), pornesc backend-ul pe 8001:
-```bash
-python manage.py runserver 127.0.0.1:8001
-```
-
-## 8) Rute UI principale (Django)
-
-- `/` (home role-based: public/client/worker)
-- `/services/`
-- `/bookings/`
-- `/bookings/new/`
-- `/chat/`
-- `/accounts/profile/`
-- `/accounts/favorites/`
-- `/accounts/notifications/`
-- `/help-requests/create/`
-- `/help-requests/<id>/apply/`
-- `/help-requests/<id>/start/`
-- `/applications/<id>/accept/`
-
-## 9) API DRF
-
-Baza:
-- `/api/v1/` (principala)
-- `/api/` (compatibilitate temporara)
-
-Resurse principale:
-- `/api/v1/help-requests/`
-- `/api/v1/volunteer-applications/`
-- `/api/v1/bookings/`
-- `/api/v1/conversations/`
-- `/api/v1/chat-messages/`
-- `/api/v1/reviews/`
-- `/api/v1/verifications/`
-- `/api/v1/reports/`
-- `/api/v1/notifications/`
-- `/api/v1/notification-preferences/`
-- `/api/v1/services/`
-- `/api/v1/service-categories/`
-- `/api/v1/providers/`
-- `/api/v1/ads/`
-- `/api/v1/offers/`
-
-Actiuni custom importante:
-- `POST /api/v1/help-requests/{id}/cancel/`
-- `POST /api/v1/help-requests/{id}/start/`
-- `POST /api/v1/help-requests/{id}/complete/`
-- `POST /api/v1/help-requests/{id}/send_to_review/`
-- `POST /api/v1/help-requests/{id}/approve/`
-- `POST /api/v1/help-requests/{id}/reject/`
-- `POST /api/v1/help-requests/{id}/lock/`
-- `POST /api/v1/help-requests/{id}/unlock/`
-- `GET /api/v1/help-requests/{id}/certificate/`
-- `POST /api/v1/volunteer-applications/{id}/accept/`
-- `POST /api/v1/volunteer-applications/{id}/reject/`
-- `POST /api/v1/volunteer-applications/{id}/withdraw/`
-
-Observatii API:
-- Crearea `help-requests` suporta `Idempotency-Key` in header (retry sigur).
-- Throttling este activ pe endpoint-uri sensibile.
-
-Schema si health:
-- `/api/v1/schema/`
-- `/health/`
-
-## 10) Ce NU se foloseste (sau e conditional)
-
-- `payments`: eliminat din proiectul curent
-- push WS via Channels: conditional (fallback activ, dar fara dependinta channels in requirements)
-- Celery+Redis real async: conditional (doar daca dezactivezi eager mode)
-- Sentry: conditional (doar cu DSN)
-- Next.js: optional, separat de runtime-ul Django
-
-## 11) Backup / restore
-
-Vezi:
-- `docs/backup_restore.md`
-
-Exemplu SQLite:
-```bash
-python manage.py dumpdata --natural-foreign --natural-primary --indent 2 > backups/data.json
-python manage.py loaddata backups/data.json
-```
-
-## 12) Recomandare practica
-
-Daca vrei o baza stabila si clara acum:
-1. trateaza Django Templates + DRF ca produs principal
-2. marcheaza explicit `frontend/` ca optional/prototip separat
-3. decide ulterior daca migrezi UI complet in Next.js sau mentii frontend-ul Django
+Ghidul de UI pentru template-uri si componente este in docs/UI.md.
