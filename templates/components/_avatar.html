@@ -1,0 +1,17 @@
+{#
+  Avatar partial. Renders a user initial inside a colored rounded square.
+
+  Required:
+    user    — any object exposing a .display_name or .username
+
+  Optional:
+    size    — sm | md (default) | lg
+    oval    — bool, extra rounded corners
+
+  Example:
+    {% include "components/_avatar.html" with user=request.user %}
+#}
+{% with display=user.display_name|default:user.username %}
+<span class="avatar{% if size %} avatar--{{ size }}{% endif %}{% if oval %} avatar-oval{% endif %}"
+      aria-hidden="true" title="{{ display }}">{{ display|first|upper }}</span>
+{% endwith %}

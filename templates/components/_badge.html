@@ -1,0 +1,16 @@
+{#
+  Badge / status chip partial.
+
+  Required:
+    label    — text inside
+
+  Optional:
+    variant  — neutral (default) | urgent | soft | glow | primary | ghost
+    icon     — short icon/emoji before label
+
+  Example:
+    {% include "components/_badge.html" with label="Urgent" variant="urgent" %}
+#}
+<span class="badge{% if variant %} badge-{{ variant }}{% endif %}">
+  {% if icon %}<span class="badge-icon" aria-hidden="true">{{ icon }}</span>{% endif %}{{ label }}
+</span>

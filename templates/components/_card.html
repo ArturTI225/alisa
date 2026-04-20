@@ -1,0 +1,22 @@
+{#
+  Card partial. Use as a generic container when a page section doesn't need its
+  own bespoke markup.
+
+  Required:
+    body       — pre-rendered HTML string OR use slots via {% include ... only %}
+
+  Optional:
+    title      — heading text
+    subtitle   — muted subtitle under the title
+    variant    — neutral (default) | warning | danger | neo
+    as_section — bool, render as <section> instead of <article>
+
+  Example:
+    {% include "components/_card.html" with title="Informații cont" body=content_html %}
+
+  For anything non-trivial, include the markup inline instead of passing a string.
+#}
+{% if as_section %}<section{% else %}<article{% endif %} class="card{% if variant and variant != 'neutral' %} {{ variant }}{% endif %}">
+  {% if title %}<header class="card__header"><h2>{{ title }}</h2>{% if subtitle %}<p class="muted">{{ subtitle }}</p>{% endif %}</header>{% endif %}
+  {% if body %}<div class="card__body">{{ body|safe }}</div>{% endif %}
+{% if as_section %}</section>{% else %}</article>{% endif %}

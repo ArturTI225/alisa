@@ -48,7 +48,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <p class="muted">Nu ai conversatii inca.</p>
+        {% include "components/_empty_state.html" with icon="💬" title="Nicio conversație încă" body="Discuțiile apar aici după ce începi un booking sau răspunzi la o cerere de ajutor." cta_label="Caută ajutor" cta_href="/bookings/new/" %}
     {% endif %}
 </div>
 {% endblock %}

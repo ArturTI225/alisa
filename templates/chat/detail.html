@@ -1,49 +1,162 @@
 {% extends "base.html" %}
-{% block title %}Conversatie #{{ conversation.id }}{% endblock %}
+{% load static %}
+{% block title %}Conversație #{{ conversation.id }}{% endblock %}
 {% block content %}
-<div class="section card glass">
+<div class="section card glass"
+     data-chat-detail
+     data-conversation-id="{{ conversation.id }}"
+     data-current-user-id="{{ user.id }}">
     <div class="list-hero">
         <div>
-            <p class="muted">Conversatie</p>
+            <p class="muted">Conversație</p>
             <h1>#{{ conversation.id }}</h1>
             <div class="pill-row">
                 {% if conversation.help_request %}
-                    <span class="chip chip-ghost">Cerere #{{ conversation.help_request.id }}: {{ conversation.help_request.title }}</span>
+                    {% include "components/_badge.html" with label="Cerere #"|add:conversation.help_request.id|stringformat:"s"|add:": "|add:conversation.help_request.title variant="ghost" %}
                 {% endif %}
                 {% if conversation.ad %}
-                    <span class="chip chip-ghost">Anunt: {{ conversation.ad.title }}</span>
-                    {% if conversation.ad.is_urgent %}<span class="chip status-pending">Urgent</span>{% endif %}
+                    {% include "components/_badge.html" with label="Anunț: "|add:conversation.ad.title variant="ghost" %}
+                    {% if conversation.ad.is_urgent %}{% include "components/_badge.html" with label="Urgent" variant="urgent" %}{% endif %}
                 {% endif %}
                 {% if conversation.booking %}
-                    <span class="chip chip-ghost">Booking #{{ conversation.booking.id }}</span>
+                    {% include "components/_badge.html" with label="Booking #"|add:conversation.booking.id|stringformat:"s" variant="ghost" %}
                 {% endif %}
+                <span class="chat-status chat-status--connecting" data-chat-status aria-live="polite">conectare…</span>
             </div>
         </div>
         <div>
-            <a class="btn-secondary" href="{% url 'chat:conversation_list' %}">Inapoi</a>
+            {% include "components/_button.html" with label="Înapoi" href=back_url|default:"/chat/" variant="ghost" %}
         </div>
     </div>
 
-    <div class="messages-thread">
+    <div class="messages-thread" data-messages aria-live="polite" aria-label="Fir de mesaje">
         {% for msg in conversation.messages.all %}
-            <div class="message-card {% if msg.sender == user %}mine{% endif %}">
-                <div class="muted">{{ msg.sender.display_name }} - {{ msg.created_at|date:"d M H:i" }}</div>
-                <p>{{ msg.text|linebreaks }}</p>
+            <article class="message-card {% if msg.sender == user %}mine{% endif %}" data-message-id="{{ msg.id }}">
+                <header class="message-card__meta muted">
+                    <span>{{ msg.sender.display_name }}</span>
+                    <span aria-hidden="true">·</span>
+                    <time datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"d M H:i" }}</time>
+                </header>
+                <p class="message-card__body">{{ msg.text|linebreaks }}</p>
                 {% if msg.attachment %}
-                    <a href="{{ msg.attachment.url }}" class="chip chip-ghost">Atasament</a>
+                    <a href="{{ msg.attachment.url }}" class="chip chip-ghost" rel="noopener">📎 Atașament</a>
                 {% endif %}
-            </div>
+            </article>
         {% empty %}
-            <p class="muted">Niciun mesaj inca.</p>
+            {% include "components/_empty_state.html" with icon="💬" title="Niciun mesaj încă" body="Scrie primul mesaj pentru a porni conversația." %}
         {% endfor %}
     </div>
 
-    <form method="post" enctype="multipart/form-data" class="glass-lite" style="margin-top:16px;padding:16px;border-radius:14px;">
+    <div class="chat-typing muted" data-typing aria-live="polite" hidden></div>
+
+    <form method="post" enctype="multipart/form-data" class="chat-composer" data-composer novalidate>
         {% csrf_token %}
-        {{ form.as_p }}
+        {% include "components/_form_field.html" with field=form.text hide_label=True %}
+        {% include "components/_form_field.html" with field=form.attachment %}
         <div class="actions-row">
-            <button class="btn-primary" type="submit">Trimite</button>
+            {% include "components/_button.html" with label="Trimite" variant="primary" %}
         </div>
     </form>
 </div>
+
+<script src="{% static 'js/ws.js' %}"></script>
+<script>
+  (function () {
+    "use strict";
+    const root = document.querySelector("[data-chat-detail]");
+    if (!root || !window.laWS) return;
+
+    const convoId = root.dataset.conversationId;
+    const meId = parseInt(root.dataset.currentUserId, 10);
+    const thread = root.querySelector("[data-messages]");
+    const statusEl = root.querySelector("[data-chat-status]");
+    const composer = root.querySelector("[data-composer]");
+    const textArea = composer && composer.querySelector("textarea");
+    const typingEl = root.querySelector("[data-typing]");
+
+    function setStatus(s) {
+      if (!statusEl) return;
+      const label =
+        s === "open" ? "online" :
+        s === "reconnecting" ? "reconectare…" :
+        s === "closed" ? "deconectat" : "conectare…";
+      statusEl.textContent = label;
+      statusEl.className = "chat-status chat-status--" + s;
+    }
+
+    function renderMessage(m) {
+      // If the message is already in the DOM (e.g. server-rendered after POST),
+      // skip it so we don't duplicate.
+      if (thread.querySelector('[data-message-id="' + m.id + '"]')) return;
+
+      const article = document.createElement("article");
+      article.className = "message-card" + (m.sender_id === meId ? " mine" : "");
+      article.dataset.messageId = m.id;
+
+      const header = document.createElement("header");
+      header.className = "message-card__meta muted";
+      const name = document.createElement("span");
+      name.textContent = m.sender_name || "";
+      const dot = document.createElement("span");
+      dot.setAttribute("aria-hidden", "true");
+      dot.textContent = "·";
+      const time = document.createElement("time");
+      const d = m.created_at ? new Date(m.created_at) : new Date();
+      time.dateTime = d.toISOString();
+      time.textContent = d.toLocaleString("ro-RO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      header.append(name, dot, time);
+
+      const body = document.createElement("p");
+      body.className = "message-card__body";
+      body.textContent = m.text || "";
+
+      article.append(header, body);
+
+      if (m.attachment_url) {
+        const a = document.createElement("a");
+        a.href = m.attachment_url;
+        a.className = "chip chip-ghost";
+        a.rel = "noopener";
+        a.textContent = "📎 Atașament";
+        article.append(a);
+      }
+
+      // Remove any empty-state that was rendered server-side.
+      const es = thread.querySelector(".es");
+      if (es) es.remove();
+
+      thread.appendChild(article);
+      article.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    const socket = window.laWS.connect("/ws/chat/" + convoId + "/", {
+      onStatus: setStatus,
+      onEvent: function (data) {
+        if (data.event === "message.new" && data.message) {
+          renderMessage(data.message);
+        } else if (data.event === "message.typing" && data.user_id !== meId) {
+          typingEl.textContent = (data.display_name || "Cineva") + " scrie…";
+          typingEl.hidden = false;
+          clearTimeout(typingEl._hideTimer);
+          typingEl._hideTimer = setTimeout(() => { typingEl.hidden = true; }, 3000);
+        }
+      },
+    });
+
+    // Typing heartbeat — throttled to one event per 2s while focused.
+    if (textArea) {
+      let lastSent = 0;
+      textArea.addEventListener("input", () => {
+        const now = Date.now();
+        if (now - lastSent < 2000) return;
+        lastSent = now;
+        socket.send({ action: "typing" });
+      });
+    }
+
+    // Scroll to the bottom on initial render.
+    const last = thread.lastElementChild;
+    if (last && last.scrollIntoView) last.scrollIntoView({ block: "end" });
+  })();
+</script>
 {% endblock %}

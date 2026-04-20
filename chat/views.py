@@ -7,9 +7,24 @@ from rest_framework import permissions, viewsets
 
 from accounts.models import Notification
 from accounts.utils import notify_user
+from .consumers import broadcast_message
 from .forms import MessageForm
 from .models import ChatMessage, Conversation
 from .serializers import ChatMessageSerializer, ConversationSerializer
+
+
+def _message_ws_payload(msg: ChatMessage) -> dict:
+    """Shape of a message pushed over the chat WebSocket."""
+    return {
+        "id": msg.id,
+        "conversation_id": msg.conversation_id,
+        "sender_id": msg.sender_id,
+        "sender_name": getattr(msg.sender, "display_name", msg.sender.username),
+        "is_mine": False,  # set per-recipient on the client using sender_id
+        "text": msg.text or "",
+        "attachment_url": msg.attachment.url if msg.attachment else "",
+        "created_at": msg.created_at.isoformat(),
+    }
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -51,6 +66,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             convo.participants.add(self.request.user)
         booking = convo.booking if convo else None
         message = serializer.save(sender=self.request.user, booking=booking)
+        broadcast_message(convo.pk, _message_ws_payload(message))
         recipients = convo.participants.exclude(pk=self.request.user.pk)
         for user in recipients:
                 notify_user(
@@ -104,6 +120,7 @@ class ConversationDetailView(LoginRequiredMixin, generic.DetailView):
                 text=form.cleaned_data.get("text", ""),
                 attachment=form.cleaned_data.get("attachment"),
             )
+            broadcast_message(self.object.pk, _message_ws_payload(msg))
             for user in self.object.participants.exclude(pk=request.user.pk):
                 notify_user(
                     user=user,

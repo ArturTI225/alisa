@@ -17,4 +17,8 @@ celery==5.3.6
 redis==5.0.8
 django-redis==5.4.0
 sentry-sdk==2.19.0
+channels==4.1.0
+channels-redis==4.2.1
+daphne==4.1.2
+django-htmx==1.19.0
 

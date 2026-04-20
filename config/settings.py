@@ -14,12 +14,17 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 INSTALLED_APPS = [
+    # daphne must come before django.contrib.staticfiles so its `runserver`
+    # override takes effect; it's the ASGI server we use in development.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
+    "django_htmx",
     "rest_framework",
     "rest_framework.authtoken",
     "accounts",
@@ -39,6 +44,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
     "accounts.middleware.BlockedUserMiddleware",
 ]
 
@@ -60,6 +66,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+# Channel layer for WebSockets. In-memory is fine for a single-process dev
+# server (what a diploma demo uses). For production, swap in channels_redis:
+#   CHANNEL_LAYERS = {"default": {
+#       "BACKEND": "channels_redis.core.RedisChannelLayer",
+#       "CONFIG": {"hosts": [env("REDIS_URL", default="redis://localhost:6379/1")]},
+#   }}
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 DATABASES = {
     "default": env.db_url(
