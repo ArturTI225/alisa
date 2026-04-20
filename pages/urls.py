@@ -1,13 +1,14 @@
 from django.urls import path
-from django.views.generic import RedirectView
 
 from .views import (
+    ApplicationsView,
     ClientAcceptApplicationView,
     ClientHelpRequestCreateView,
     FAQView,
     HomePageView,
     HowItWorksView,
     ProviderApplyView,
+    ReviewsView,
     WorkerApplyHelpRequestView,
     WorkerStartHelpRequestView,
 )
@@ -36,12 +37,9 @@ urlpatterns = [
         ClientAcceptApplicationView.as_view(),
         name="application_accept",
     ),
+    path("applications/", ApplicationsView.as_view(), name="applications"),
+    path("reviews/", ReviewsView.as_view(), name="reviews"),
     path("cum-functioneaza/", HowItWorksView.as_view(), name="how_it_works"),
     path("faq/", FAQView.as_view(), name="faq"),
     path("devino-membru/", ProviderApplyView.as_view(), name="apply"),
-    path(
-        "devino-sot-la-ora/",
-        RedirectView.as_view(url="/devino-membru/", permanent=True),
-        name="apply_legacy_redirect",
-    ),
 ]

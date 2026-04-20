@@ -121,6 +121,7 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             "bids",
             "urgent_ads",
             "reviews",
+            "in_app_sound",
         ]
 
 

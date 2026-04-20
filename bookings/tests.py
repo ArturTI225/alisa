@@ -1,6 +1,8 @@
 from datetime import timedelta
 from copy import deepcopy
 import io
+import logging
+from unittest.mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
@@ -9,9 +11,10 @@ from django.conf import settings
 from django.core.management import call_command
 from rest_framework.test import APITestCase
 
+from config.observability import RequestContextFilter
 from accounts.models import User, Address, Notification
 from services.models import ServiceCategory, Service
-from bookings.models import Booking, HelpRequest, VolunteerApplication
+from bookings.models import Booking, BookingDispute, HelpRequest, VolunteerApplication
 from chat.models import Conversation, ChatMessage
 
 THROTTLE_SETTINGS = deepcopy(settings.REST_FRAMEWORK)
@@ -22,6 +25,15 @@ THROTTLE_SETTINGS["DEFAULT_THROTTLE_RATES"] = {
     "user": "2/minute",
     "anon": "50/minute",
 }
+
+
+class _RecordCaptureHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
 
 
 class BookingUrgencyAPITests(APITestCase):
@@ -167,6 +179,41 @@ class BookingCreateViewTests(TestCase):
         self.assertContains(response, "Exista deja un cont cu acest email")
         self.assertEqual(Booking.objects.count(), 0)
 
+    def test_create_page_uses_shared_form_component_and_guidance(self):
+        response = self.client.get(self.create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="ff__label"', html=False)
+        self.assertContains(
+            response,
+            "Alege mai intai categoria, ca sa restrangem serviciile disponibile.",
+        )
+        self.assertContains(response, 'id="service-suggestions"', html=False)
+        self.assertContains(response, "Cand ai nevoie de ajutor")
+
+    def test_authenticated_create_page_shows_saved_address_selector(self):
+        user = User.objects.create_user(
+            username="book_client",
+            password="pass123",
+            role=User.Roles.CLIENT,
+        )
+        Address.objects.create(
+            user=user,
+            label="Birou",
+            city="Bucuresti",
+            street="Strada Salvata 7",
+        )
+
+        self.client.login(username="book_client", password="pass123")
+        response = self.client.get(self.create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="saved_address"', html=False)
+        self.assertContains(
+            response,
+            "Selecteaza o adresa salvata sau completeaza manual campurile de mai jos.",
+        )
+
 
 class BookingClientDecisionWebTests(TestCase):
     def setUp(self):
@@ -212,6 +259,132 @@ class BookingClientDecisionWebTests(TestCase):
         self.booking.refresh_from_db()
         self.assertEqual(self.booking.status, Booking.Status.COMPLETED)
         self.assertIsNotNone(self.booking.client_confirmed_at)
+
+
+class BookingFormRenderingTests(TestCase):
+    def setUp(self):
+        self.client_user = User.objects.create_user(
+            username="client_forms",
+            password="pass123",
+            role=User.Roles.CLIENT,
+        )
+        self.provider = User.objects.create_user(
+            username="provider_forms",
+            password="pass123",
+            role=User.Roles.PROVIDER,
+        )
+        category = ServiceCategory.objects.create(name="Instalatii UI", slug="instalatii-ui")
+        self.service = Service.objects.create(
+            category=category,
+            name="Montaj corp iluminat",
+            slug="montaj-corp-iluminat",
+        )
+        self.address = Address.objects.create(
+            user=self.client_user,
+            label="Acasa",
+            city="Bucuresti",
+            street="Strada Form 10",
+        )
+
+    def _booking(self, **overrides):
+        payload = {
+            "client": self.client_user,
+            "provider": self.provider,
+            "service": self.service,
+            "address": self.address,
+            "description": "Test formular web",
+            "scheduled_start": timezone.now() + timedelta(days=1),
+            "duration_minutes": 90,
+            "status": Booking.Status.PENDING,
+        }
+        payload.update(overrides)
+        return Booking.objects.create(**payload)
+
+    def test_client_booking_pages_render_shared_field_component(self):
+        booking = self._booking(provider=self.provider, status=Booking.Status.PENDING)
+        self.client.login(username="client_forms", password="pass123")
+
+        cancel_response = self.client.get(reverse("bookings:cancel", args=[booking.id]))
+        self.assertEqual(cancel_response.status_code, 200)
+        self.assertContains(cancel_response, 'class="ff__label"', html=False)
+        self.assertContains(
+            cancel_response,
+            "Ajuta-l pe celalalt utilizator sa inteleaga de ce se inchide cererea.",
+        )
+
+        reschedule_response = self.client.get(
+            reverse("bookings:reschedule", args=[booking.id])
+        )
+        self.assertEqual(reschedule_response.status_code, 200)
+        self.assertContains(
+            reschedule_response,
+            "Alege un interval viitor care functioneaza pentru ambele parti.",
+        )
+
+        repeat_response = self.client.get(reverse("bookings:repeat", args=[booking.id]))
+        self.assertEqual(repeat_response.status_code, 200)
+        self.assertContains(
+            repeat_response,
+            "Daca il lasi gol, noua rezervare porneste din momentul curent.",
+        )
+
+        detail_response = self.client.get(reverse("bookings:detail", args=[booking.id]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, 'type="file"', html=False)
+        self.assertContains(
+            detail_response,
+            "Incarca un document, o poza sau un alt fisier relevant pentru comanda.",
+        )
+
+        recurring_response = self.client.get(reverse("bookings:recurring_create"))
+        self.assertEqual(recurring_response.status_code, 200)
+        self.assertContains(
+            recurring_response,
+            "Alege serviciul pe care vrei sa-l programezi repetat.",
+        )
+
+    def test_provider_booking_pages_render_shared_field_component(self):
+        pending_booking = self._booking(status=Booking.Status.PENDING)
+        active_booking = self._booking(
+            status=Booking.Status.IN_PROGRESS,
+            scheduled_start=timezone.now() - timedelta(hours=1),
+        )
+        disputed_booking = self._booking(status=Booking.Status.DISPUTED)
+        BookingDispute.objects.create(
+            booking=disputed_booking,
+            opened_by=self.client_user,
+            reason="Apar neclaritati la finalizare.",
+            status=BookingDispute.Status.OPEN,
+        )
+
+        self.client.login(username="provider_forms", password="pass123")
+
+        decline_response = self.client.get(
+            reverse("bookings:decline", args=[pending_booking.id])
+        )
+        self.assertEqual(decline_response.status_code, 200)
+        self.assertContains(
+            decline_response,
+            "Ajuta-l pe celalalt utilizator sa inteleaga de ce se inchide cererea.",
+        )
+
+        complete_response = self.client.get(
+            reverse("bookings:complete", args=[active_booking.id])
+        )
+        self.assertEqual(complete_response.status_code, 200)
+        self.assertContains(
+            complete_response,
+            "Rezuma ce ai facut sau ce ar trebui verificat inainte de confirmare.",
+        )
+
+        resolve_response = self.client.get(
+            reverse("bookings:resolve_dispute", args=[disputed_booking.id])
+        )
+        self.assertEqual(resolve_response.status_code, 200)
+        self.assertContains(
+            resolve_response,
+            "Noteaza clar ce s-a lamurit si de ce disputa poate fi inchisa.",
+        )
 
 
 class BookingAcceptChatMessageWebTests(TestCase):
@@ -268,7 +441,7 @@ class BookingAcceptChatMessageWebTests(TestCase):
             sender=self.provider,
         ).order_by("-created_at").first()
         self.assertIsNotNone(msg)
-        self.assertEqual(msg.text, "Mesterul a acceptat lucrarea.")
+        self.assertEqual(msg.text, "Voluntarul a acceptat cererea de ajutor.")
 
         self.assertTrue(
             Notification.objects.filter(
@@ -289,6 +462,46 @@ class HelpRequestFlowAPITests(APITestCase):
         )
         category = ServiceCategory.objects.create(name="Voluntariat", slug="voluntariat")
         self.category = category
+
+    def _prepare_help_request_for_completion(self) -> int:
+        self.client.login(username="client2", password="pass123")
+        create_resp = self.client.post(
+            reverse("v1:help-request-list"),
+            {
+                "title": "Ajutor completare observability",
+                "description": "Test de completare pentru observability.",
+                "city": "Bucuresti",
+                "region": "Sector 1",
+                "urgency": HelpRequest.Urgency.LOW,
+                "category_id": self.category.id,
+            },
+            format="json",
+        )
+        self.assertEqual(create_resp.status_code, 201)
+        help_request_id = create_resp.data["id"]
+        self.client.logout()
+
+        self.client.login(username="volunteer2", password="pass123")
+        app_resp = self.client.post(
+            reverse("v1:volunteer-application-list"),
+            {"help_request": help_request_id, "message": "Pot ajuta."},
+            format="json",
+        )
+        self.assertEqual(app_resp.status_code, 201)
+        app_id = app_resp.data["id"]
+        self.client.logout()
+
+        self.client.login(username="client2", password="pass123")
+        accept_resp = self.client.post(reverse("v1:volunteer-application-accept", args=[app_id]))
+        self.assertEqual(accept_resp.status_code, 200)
+        self.client.logout()
+
+        self.client.login(username="volunteer2", password="pass123")
+        start_resp = self.client.post(reverse("v1:help-request-start", args=[help_request_id]))
+        self.assertEqual(start_resp.status_code, 200)
+        self.client.logout()
+
+        return help_request_id
 
     def test_help_request_lifecycle(self):
         # client creates help request
@@ -345,6 +558,46 @@ class HelpRequestFlowAPITests(APITestCase):
         cert_resp = self.client.get(reverse("v1:help-request-certificate", args=[help_request_id]))
         self.assertEqual(cert_resp.status_code, 200)
         self.assertIn("pdf_url", cert_resp.data)
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_help_request_complete_logs_task_with_request_id_when_eager(self):
+        help_request_id = self._prepare_help_request_for_completion()
+        logger = logging.getLogger("platform.tasks")
+        handler = _RecordCaptureHandler()
+        handler.addFilter(RequestContextFilter())
+        logger.addHandler(handler)
+
+        try:
+            self.client.login(username="volunteer2", password="pass123")
+            complete_resp = self.client.post(
+                reverse("v1:help-request-complete", args=[help_request_id]),
+                HTTP_X_REQUEST_ID="eager-task-req-123",
+            )
+            self.assertEqual(complete_resp.status_code, 200)
+        finally:
+            logger.removeHandler(handler)
+
+        task_records = [record for record in handler.records if record.getMessage().startswith("task.")]
+        self.assertTrue(task_records)
+        messages = [record.getMessage() for record in task_records]
+        self.assertIn("task.started", messages)
+        self.assertIn("task.completed", messages)
+        for record in task_records:
+            self.assertEqual(getattr(record, "request_id", ""), "eager-task-req-123")
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=False)
+    @patch("bookings.tasks.generate_certificate.delay")
+    def test_help_request_complete_passes_request_id_to_delayed_task(self, delay_mock):
+        help_request_id = self._prepare_help_request_for_completion()
+
+        self.client.login(username="volunteer2", password="pass123")
+        complete_resp = self.client.post(
+            reverse("v1:help-request-complete", args=[help_request_id]),
+            HTTP_X_REQUEST_ID="delayed-task-req-456",
+        )
+        self.assertEqual(complete_resp.status_code, 200)
+
+        delay_mock.assert_called_once_with(help_request_id, "delayed-task-req-456")
 
     def test_high_urgency_requires_verification(self):
         self.client.login(username="client2", password="pass123")

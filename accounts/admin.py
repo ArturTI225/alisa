@@ -97,7 +97,14 @@ class ReportAdmin(admin.ModelAdmin):
 
 @admin.register(NotificationPreference)
 class NotificationPreferenceAdmin(admin.ModelAdmin):
-    list_display = ("user", "booking_updates", "disputes", "marketing", "recurring")
+    list_display = (
+        "user",
+        "booking_updates",
+        "disputes",
+        "recurring",
+        "chat_messages",
+        "in_app_sound",
+    )
 
 
 @admin.register(Badge)

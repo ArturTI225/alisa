@@ -3,6 +3,8 @@ from typing import Optional
 from django.conf import settings
 from django.utils import timezone
 
+from config.observability import get_current_request_id
+
 try:
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
@@ -41,6 +43,7 @@ def notify_user(
     title: str,
     body: str = "",
     link: str = "",
+    request_id: str = "",
 ) -> Optional[Notification]:
     notif_type = notif_type or Notification.Type.GENERAL
     pref = getattr(user, "notification_pref", None)
@@ -54,17 +57,23 @@ def notify_user(
         body=body or "",
         link=link or "",
     )
+
+    resolved_request_id = request_id or get_current_request_id(default="")
+    payload = {
+        "id": notif.id,
+        "type": notif.type,
+        "title": notif.title,
+        "body": notif.body,
+        "link": notif.link,
+        "is_read": notif.is_read,
+        "created_at": notif.created_at.isoformat(),
+    }
+    if resolved_request_id:
+        payload["request_id"] = resolved_request_id
+
     _push_ws(
         user.id,
-        {
-            "id": notif.id,
-            "type": notif.type,
-            "title": notif.title,
-            "body": notif.body,
-            "link": notif.link,
-            "is_read": notif.is_read,
-            "created_at": notif.created_at.isoformat(),
-        },
+        payload,
     )
     return notif
 

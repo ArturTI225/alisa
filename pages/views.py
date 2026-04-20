@@ -21,7 +21,7 @@ from chat.models import Conversation
 from reviews.models import Review
 from services.models import Service, ServiceCategory
 
-from .forms import ClientHelpRequestForm, WorkerRequestSearchForm
+from .forms import ClientHelpRequestForm, ReviewComposeForm, WorkerRequestSearchForm
 
 
 def _append_help_request_history(help_request: HelpRequest, new_status: str, actor):
@@ -458,6 +458,190 @@ class WorkerStartHelpRequestView(LoginRequiredMixin, View):
         )
         messages.success(request, "Status actualizat: In work.")
         return redirect("chat:conversation_detail", pk=conversation.pk)
+
+
+class ApplicationsView(LoginRequiredMixin, generic.TemplateView):
+    template_name = "pages/applications.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        if getattr(user, "is_client", False):
+            app_qs = (
+                VolunteerApplication.objects.filter(
+                    help_request__created_by=user,
+                    help_request__is_deleted=False,
+                )
+                .select_related("volunteer", "help_request", "help_request__category")
+                .order_by("-created_at")
+            )
+            apps = list(app_qs)
+            request_ids = [app.help_request_id for app in apps]
+            conversation_map = dict(
+                Conversation.objects.filter(help_request_id__in=request_ids).values_list(
+                    "help_request_id", "id"
+                )
+            )
+
+            selected = None
+            selected_id = self.request.GET.get("a")
+            if selected_id:
+                selected = next(
+                    (app for app in apps if str(app.id) == str(selected_id)),
+                    None,
+                )
+            if selected is None and apps:
+                selected = apps[0]
+
+            for app in apps:
+                app.chat_conversation_id = conversation_map.get(app.help_request_id)
+                app.is_new = app.status == VolunteerApplication.Status.PENDING
+
+            ctx.update(
+                {
+                    "applications": apps,
+                    "selected_application": selected,
+                    "is_client_view": True,
+                    "applications_count": len(apps),
+                }
+            )
+            return ctx
+
+        applications_sent = (
+            VolunteerApplication.objects.filter(volunteer=user)
+            .select_related("help_request", "help_request__created_by", "help_request__category")
+            .order_by("-created_at")
+        )
+        ctx.update(
+            {
+                "applications_sent": applications_sent,
+                "is_client_view": False,
+            }
+        )
+        return ctx
+
+
+class ReviewsView(LoginRequiredMixin, generic.FormView):
+    template_name = "pages/reviews.html"
+    form_class = ReviewComposeForm
+
+    def get_success_url(self):
+        return self.request.path
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def _build_quick_tags(self, review):
+        tags = []
+        text = (review.comment or "").lower()
+        if review.rating >= 5:
+            tags.append("excelent")
+        elif review.rating == 4:
+            tags.append("foarte bun")
+        elif review.rating <= 2:
+            tags.append("de imbunatatit")
+
+        if any(word in text for word in ["rapid", "repede", "punctual"]):
+            tags.append("punctual")
+        if any(word in text for word in ["clar", "comunic", "explica"]):
+            tags.append("comunicare")
+        if any(word in text for word in ["atent", "detali", "grija"]):
+            tags.append("atent")
+
+        if not tags:
+            tags.append("feedback")
+        return tags[:3]
+
+    def _distribution_rows(self, queryset):
+        grouped = queryset.values("rating").annotate(total=models.Count("id"))
+        counts = {row["rating"]: row["total"] for row in grouped}
+        total = sum(counts.values())
+        rows = []
+        for score in [5, 4, 3, 2, 1]:
+            cnt = counts.get(score, 0)
+            pct = round((cnt / total) * 100) if total else 0
+            rows.append({"score": score, "count": cnt, "percent": pct})
+        return rows, total
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        active_tab = self.request.GET.get("tab", "received")
+        if active_tab not in ["received", "given"]:
+            active_tab = "received"
+
+        reviews_received = list(
+            Review.objects.filter(to_user=user)
+            .select_related("from_user", "booking", "help_request")
+            .order_by("-created_at")[:20]
+        )
+        reviews_given = list(
+            Review.objects.filter(from_user=user)
+            .select_related("to_user", "booking", "help_request")
+            .order_by("-created_at")[:20]
+        )
+        for review in reviews_received:
+            review.quick_tags = self._build_quick_tags(review)
+        for review in reviews_given:
+            review.quick_tags = self._build_quick_tags(review)
+
+        quality_counts = {}
+        for review in reviews_received:
+            for tag in review.quick_tags:
+                quality_counts[tag] = quality_counts.get(tag, 0) + 1
+        top_qualities = sorted(
+            quality_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[:5]
+
+        rows, total_count = self._distribution_rows(Review.objects.filter(to_user=user))
+        avg_rating = round(float(user.rating_avg or 0), 1)
+
+        ctx.update(
+            {
+                "reviews_received": reviews_received,
+                "reviews_given": reviews_given,
+                "reviews_active_tab": active_tab,
+                "rating_distribution": rows,
+                "rating_total": total_count,
+                "rating_avg": avg_rating,
+                "top_qualities": top_qualities,
+            }
+        )
+        return ctx
+
+    def form_valid(self, form):
+        user = self.request.user
+        booking = form.cleaned_data["booking"]
+
+        if booking.client_id == user.id:
+            to_user = booking.provider
+        elif booking.provider_id == user.id:
+            to_user = booking.client
+        else:
+            messages.error(self.request, "Nu poti lasa review pentru aceasta rezervare.")
+            return redirect(self.get_success_url())
+
+        if to_user is None:
+            messages.error(self.request, "Rezervarea nu are cealalta persoana asignata.")
+            return redirect(self.get_success_url())
+
+        if Review.objects.filter(booking=booking, from_user=user).exists():
+            messages.info(self.request, "Ai lasat deja un review pentru aceasta rezervare.")
+            return redirect(self.get_success_url())
+
+        Review.objects.create(
+            booking=booking,
+            from_user=user,
+            to_user=to_user,
+            rating=form.cleaned_data["rating"],
+            comment=form.cleaned_data.get("comment", ""),
+        )
+        messages.success(self.request, "Review-ul a fost publicat.")
+        return super().form_valid(form)
 
 
 class HowItWorksView(generic.TemplateView):

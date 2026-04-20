@@ -87,9 +87,33 @@ class ConversationListView(LoginRequiredMixin, generic.ListView):
         return (
             Conversation.objects.filter(participants=self.request.user)
             .select_related("ad", "booking", "help_request")
-            .prefetch_related("participants")
+            .prefetch_related("participants", "messages__sender")
             .order_by("-created_at")
         )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        conversations = list(ctx.get("conversations", []))
+        selected_id = self.request.GET.get("c")
+
+        selected_conversation = None
+        if selected_id:
+            try:
+                selected_pk = int(selected_id)
+            except (TypeError, ValueError):
+                selected_pk = None
+            if selected_pk:
+                selected_conversation = next(
+                    (convo for convo in conversations if convo.pk == selected_pk),
+                    None,
+                )
+
+        if selected_conversation is None and conversations:
+            selected_conversation = conversations[0]
+
+        ctx["selected_conversation"] = selected_conversation
+        ctx["form"] = MessageForm()
+        return ctx
 
 
 class ConversationDetailView(LoginRequiredMixin, generic.DetailView):
@@ -129,4 +153,4 @@ class ConversationDetailView(LoginRequiredMixin, generic.DetailView):
                     body=msg.text[:140],
                     link=reverse("chat:conversation_detail", args=[self.object.pk]),
                 )
-        return redirect("chat:conversation_detail", pk=self.object.pk)
+            return redirect(f"{reverse('chat:conversation_list')}?c={self.object.pk}")

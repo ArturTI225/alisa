@@ -1,5 +1,7 @@
 from django import forms
+from django.db.models import Q
 
+from bookings.models import Booking
 from bookings.models import HelpRequest
 from services.models import ServiceCategory
 
@@ -80,4 +82,41 @@ class WorkerRequestSearchForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = ServiceCategory.objects.filter(
             is_active=True
+        )
+
+
+class ReviewComposeForm(forms.Form):
+    booking = forms.ModelChoiceField(
+        queryset=Booking.objects.none(),
+        label="Rezervare finalizata",
+        empty_label="Alege rezervarea",
+    )
+    rating = forms.IntegerField(min_value=1, max_value=5, initial=5, label="Rating")
+    comment = forms.CharField(
+        required=False,
+        label="Comentariu",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": "Cum a decurs ajutorul? Ce ai apreciat?",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+        if user is None:
+            return
+
+        participated_completed = Booking.objects.filter(
+            status=Booking.Status.COMPLETED,
+        ).filter(
+            Q(client=user) | Q(provider=user)
+        )
+        already_reviewed = user.reviews_authored.values_list("booking_id", flat=True)
+        self.fields["booking"].queryset = (
+            participated_completed.exclude(id__in=already_reviewed)
+            .select_related("client", "provider", "service")
+            .order_by("-completed_at", "-id")
         )

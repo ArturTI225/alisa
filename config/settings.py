@@ -42,6 +42,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.observability.RequestObservabilityMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
@@ -60,6 +61,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.shell_context",
             ],
         },
     },
@@ -159,25 +161,42 @@ REST_FRAMEWORK = {
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+OBSERVABILITY_SLOW_REQUEST_MS = env.int("OBSERVABILITY_SLOW_REQUEST_MS", default=800)
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "request_context": {
+            "()": "config.observability.RequestContextFilter",
+        }
+    },
     "formatters": {
         "structured": {
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "format": (
+                "%(asctime)s level=%(levelname)s logger=%(name)s "
+                "request_id=%(request_id)s method=%(method)s path=%(path)s "
+                "view=%(view_name)s user_id=%(user_id)s status=%(status_code)s "
+                "duration_ms=%(duration_ms)s message=%(message)s"
+            ),
         }
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "structured",
+            "filters": ["request_context"],
         },
     },
     "loggers": {
         "": {
             "handlers": ["console"],
             "level": env("DJANGO_LOG_LEVEL", default="INFO"),
+        },
+        "platform.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
         "django.request": {
             "handlers": ["console"],
