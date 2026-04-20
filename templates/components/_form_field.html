@@ -1,0 +1,38 @@
+{#
+  Reusable form-field partial.
+
+  Required:
+    field     — a Django BoundField (e.g. form.email)
+
+  Optional:
+    label     — override field.label
+    help      — override field.help_text
+    autofocus — bool, attaches autofocus to the widget on first render
+    hide_label — bool, visually hide the label (still announced to screen readers)
+
+  Example:
+    {% include "components/_form_field.html" with field=form.email autofocus=True %}
+#}
+<div class="ff {% if field.errors %}ff--error{% endif %}">
+  <label for="{{ field.id_for_label }}"
+         class="ff__label{% if hide_label %} ff__label--sr{% endif %}">
+    {{ label|default:field.label }}
+    {% if field.field.required %}<span class="ff__required" aria-hidden="true">*</span>{% endif %}
+  </label>
+
+  <div class="ff__control">
+    {{ field }}
+  </div>
+
+  {% if field.errors %}
+    <ul class="ff__errors" role="alert">
+      {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  {% with resolved_help=help|default:field.help_text %}
+    {% if resolved_help %}
+      <p class="ff__help">{{ resolved_help }}</p>
+    {% endif %}
+  {% endwith %}
+</div>

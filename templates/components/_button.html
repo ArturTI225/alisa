@@ -1,0 +1,35 @@
+{#
+  Button partial. Renders either an <a> or <button> depending on whether href is set.
+
+  Required:
+    label      — button text
+
+  Optional:
+    href       — if set, renders an anchor instead of a button
+    variant    — primary (default) | secondary | ghost | urgent | ghost-danger
+    slim       — bool, slim size
+    block      — bool, full width
+    type       — button type (default "submit" when no href)
+    icon       — emoji/text rendered before label
+    aria_label — overrides label for screen readers when icon-only
+    extra      — extra class string appended
+
+  Example:
+    {% include "components/_button.html" with label="Salvează" variant="primary" %}
+    {% include "components/_button.html" with label="Anulează" href="/bookings/" variant="ghost" %}
+#}
+{% with btn_class="btn-"|add:variant|default:"btn-primary" %}
+{% if href %}
+  <a href="{{ href }}"
+     class="btn-{{ variant|default:"primary" }}{% if slim %} slim{% endif %}{% if block %} btn-block{% endif %}{% if extra %} {{ extra }}{% endif %}"
+     {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}>
+    {% if icon %}<span class="btn__icon" aria-hidden="true">{{ icon }}</span>{% endif %}{{ label }}
+  </a>
+{% else %}
+  <button type="{{ type|default:"submit" }}"
+          class="btn-{{ variant|default:"primary" }}{% if slim %} slim{% endif %}{% if block %} btn-block{% endif %}{% if extra %} {{ extra }}{% endif %}"
+          {% if aria_label %}aria-label="{{ aria_label }}"{% endif %}>
+    {% if icon %}<span class="btn__icon" aria-hidden="true">{{ icon }}</span>{% endif %}{{ label }}
+  </button>
+{% endif %}
+{% endwith %}

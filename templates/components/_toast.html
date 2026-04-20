@@ -1,0 +1,20 @@
+{#
+  Toast partial. Rendered inside the flash container by base.html, but also
+  available for ad-hoc inline toasts (e.g. in HTMX swaps).
+
+  Required:
+    message   — toast text
+
+  Optional:
+    level     — info (default) | success | warning | danger
+    dismiss   — bool, show close button (default True)
+
+  Example:
+    {% include "components/_toast.html" with message="Modificările au fost salvate" level="success" %}
+#}
+<div class="toast toast--{{ level|default:"info" }}" role="status" aria-live="polite">
+  <span class="toast__message">{{ message }}</span>
+  {% if dismiss|default_if_none:True %}
+    <button class="toast__close alert-close" type="button" aria-label="Închide">&times;</button>
+  {% endif %}
+</div>

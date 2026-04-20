@@ -1,0 +1,75 @@
+/*
+  Empty-state component (es = empty state).
+  Pairs with templates/components/_empty_state.html.
+
+  Shown when a list has no items. Never just "Nu există..." — always a title,
+  optional body, and optional CTA so the user knows what to do next.
+*/
+
+.es {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  background: var(--surface-soft);
+  border: 1px dashed var(--stroke);
+  border-radius: var(--radius-lg);
+  min-height: 180px;
+  color: var(--ink-muted);
+}
+
+.es__icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  font-size: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--info-soft);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-xs);
+  animation: es-bob var(--dur-slower) var(--ease-out);
+}
+
+@keyframes es-bob {
+  from {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.es__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+}
+
+.es__body {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--fs-md);
+  color: var(--ink-muted);
+  line-height: var(--lh-normal);
+}
+
+/* Compact variant — for inline lists where the vertical space is tighter. */
+.es--compact {
+  padding: var(--space-5) var(--space-4);
+  min-height: 0;
+  gap: var(--space-2);
+}
+
+.es--compact .es__icon {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+}

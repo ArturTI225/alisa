@@ -1,32 +1,4 @@
-:root {
-  --font-body: "Manrope", "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk", "Manrope", sans-serif;
-  --bg: #e1f2fe;
-  --bg-strong: #e1f2fe;
-  --surface: #ffffff;
-  --surface-soft: #f5f9fd;
-  --ink: #49392c;
-  --ink-muted: #77625c;
-  --accent: #77625c;
-  --accent-strong: #49392c;
-  --accent-soft: #b2b1cf;
-  --sun: #98d2eb;
-  --sun-strong: #49392c;
-  --danger: #ef4444;
-  --success: #77625c;
-  --info: #98d2eb;
-  --warning: #b2b1cf;
-  --stroke: #c4d5e3;
-  --stroke-strong: #b2b1cf;
-  --shadow-sm: 0 8px 24px rgba(16, 19, 26, 0.08);
-  --shadow-md: 0 18px 44px rgba(16, 19, 26, 0.12);
-  --shadow-lg: 0 32px 70px rgba(16, 19, 26, 0.16);
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  --gutter: 24px;
-}
+/* Design tokens live in tokens.css (loaded before this file). */
 
 *,
 *::before,

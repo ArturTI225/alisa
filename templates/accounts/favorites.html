@@ -42,7 +42,7 @@
                 </div>
             </div>
         {% empty %}
-            <p class="muted">Niciun serviciu favorit încă.</p>
+            {% include "components/_empty_state.html" with icon="⭐" title="Niciun serviciu favorit" body="Apasă pe steluță din pagina unui serviciu pentru a-l salva aici." cta_label="Vezi serviciile" cta_href="/services/" %}
         {% endfor %}
     </div>
 
@@ -67,7 +67,7 @@
                 </div>
             </div>
         {% empty %}
-            <p class="muted">Niciun prestator favorit încă.</p>
+            {% include "components/_empty_state.html" with icon="⭐" title="Niciun prestator favorit" body="Salvează persoanele la care vrei să revii — le găsești aici oricând." cta_label="Caută voluntari" cta_href="/" %}
         {% endfor %}
     </div>
 </div>

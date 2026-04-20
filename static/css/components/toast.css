@@ -1,0 +1,106 @@
+/*
+  Live-toast stack — fixed to the top-right, stacks newest on top.
+  Rendered by the base.html WebSocket handler when a notification arrives.
+*/
+
+.live-toasts {
+  position: fixed;
+  top: var(--space-5);
+  right: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  z-index: var(--z-toast);
+  max-width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.live-toast {
+  position: relative;
+  pointer-events: auto;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--stroke);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  padding-right: var(--space-7);
+  box-shadow: var(--shadow-md);
+  animation: toast-in var(--dur-slow) var(--ease-spring);
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
+}
+
+.live-toast--leaving {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.live-toast__title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-1);
+  color: var(--ink);
+}
+
+.live-toast__body {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--ink-muted);
+  line-height: var(--lh-normal);
+}
+
+.live-toast__link {
+  display: inline-block;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.live-toast__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.live-toast__close:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (max-width: 720px) {
+  .live-toasts {
+    top: auto;
+    bottom: var(--space-5);
+    left: var(--space-5);
+    right: var(--space-5);
+    max-width: none;
+  }
+}

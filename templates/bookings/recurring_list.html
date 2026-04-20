@@ -37,7 +37,7 @@
                 </div>
             </div>
         {% empty %}
-            <p class="muted">Nu ai serii recurente încă.</p>
+            {% include "components/_empty_state.html" with icon="🔁" title="Nicio serie recurentă" body="Transformă o rezervare existentă într-o serie recurentă ca să nu mai plănuiești de fiecare dată." %}
         {% endfor %}
     </div>
 </div>

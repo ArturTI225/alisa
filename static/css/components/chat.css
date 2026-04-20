@@ -1,0 +1,121 @@
+/*
+  Chat composer + message card refinements.
+  Base .messages-thread / .message-card live in style.css; this file adds the
+  finer structure introduced by templates/chat/detail.html.
+*/
+
+.chat-composer {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--stroke-subtle);
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(6px);
+}
+
+.chat-composer .ff:last-of-type {
+  margin-bottom: var(--space-4);
+}
+
+.message-card {
+  position: relative;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.message-card.mine {
+  margin-left: var(--space-6);
+}
+
+.message-card:not(.mine) {
+  margin-right: var(--space-6);
+}
+
+.message-card__meta {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--fs-sm);
+}
+
+.message-card__body {
+  margin: var(--space-2) 0 0;
+  line-height: var(--lh-relaxed);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.message-card__body > p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .message-card.mine,
+  .message-card:not(.mine) {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.chat-status {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunk);
+  color: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chat-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-subtle);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.chat-status--open {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.chat-status--open::before {
+  background: var(--success);
+  animation: chat-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+.chat-status--reconnecting {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.chat-status--reconnecting::before {
+  background: var(--warning);
+}
+
+.chat-status--closed {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.chat-status--closed::before {
+  background: var(--danger);
+}
+
+@keyframes chat-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.6; }
+}
+
+.chat-typing {
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  font-style: italic;
+  opacity: 0.85;
+}
