@@ -1,53 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Panou voluntar{% endblock %}
 {% block content %}
+<section class="section civic-screen">
+    <header class="civic-view-header">
+        <div>
+            <p class="civic-eyebrow">Voluntar · panou activ</p>
+            <h1>Buna, {{ user.first_name|default:user.display_name }}.</h1>
+            <p class="muted">Vezi cererile deschise, aplica rapid si urmareste tot fluxul dintr-un singur loc.</p>
+        </div>
+    </header>
 
-<section class="hero-spotlight hero-split">
-    <div class="hero-copy">
-        <div class="badge badge-glow">Panou voluntar</div>
-        <h1>Cauta cereri dupa domeniu</h1>
-        <p class="muted">
-            Alege domeniul, aplica la cerere si discuta cu solicitantul in chat.
-            Dupa ce clarificati problema, apasa <strong>Porneste ajutorul</strong> pentru status <strong>in desfasurare</strong>.
-        </p>
-        {% if worker_skill_category_ids %}
-            <div class="pill-row">
-                <span class="pill">Domenii recomandate pe baza abilitatilor tale</span>
-            </div>
-        {% endif %}
-    </div>
-    <div class="hero-panel">
+    <article class="card civic-search-panel">
         <form method="get" action="{% url 'pages:home' %}">
-            {{ search_form.category.label_tag }}
-            {{ search_form.category }}
-            <div class="split-section">
-                <div>
-                    {{ search_form.urgency.label_tag }}
-                    {{ search_form.urgency }}
-                </div>
-                <div>
-                    {{ search_form.city.label_tag }}
-                    {{ search_form.city }}
-                </div>
+            <div class="ff-row">
+                {% include "components/_form_field.html" with field=search_form.category %}
+                {% include "components/_form_field.html" with field=search_form.urgency %}
             </div>
-            {{ search_form.q.label_tag }}
-            {{ search_form.q }}
+            <div class="ff-row">
+                {% include "components/_form_field.html" with field=search_form.city %}
+                {% include "components/_form_field.html" with field=search_form.q %}
+            </div>
             <div class="actions-row">
                 <button class="btn-primary" type="submit">Cauta cereri</button>
                 <a class="btn-secondary" href="{% url 'pages:home' %}">Reset filtre</a>
             </div>
         </form>
-    </div>
-</section>
+    </article>
 
 <section class="section">
     <header class="section-header">
         <div>
             <div class="badge">Cereri</div>
             <h2>Cereri disponibile</h2>
+            <p class="muted">Filtreaza rapid si vezi unde poti interveni imediat.</p>
         </div>
     </header>
-    <div class="booking-grid">
+    <div class="booking-grid"{% if open_bookings or open_requests %} data-skeleton data-skeleton-duration="560"{% endif %}>
         {% for booking in open_bookings %}
             <article class="booking-card">
                 <div class="booking-card__top">
@@ -120,7 +108,7 @@
             </article>
         {% endfor %}
         {% if not open_bookings and not open_requests %}
-            <p class="muted">Nu exista cereri disponibile pentru filtrele selectate.</p>
+            {% include "components/_empty_state.html" with title="Nu exista cereri pentru filtrele alese" body="Schimba orasul, urgenta sau cautarea si verifica din nou peste cateva minute." %}
         {% endif %}
     </div>
 </section>
@@ -132,7 +120,7 @@
             <h2>Cererile mele (ca solicitant)</h2>
         </div>
     </header>
-    <div class="booking-grid">
+    <div class="booking-grid"{% if my_client_requests %} data-skeleton data-skeleton-duration="520"{% endif %}>
         {% for req in my_client_requests %}
             <article class="booking-card">
                 <div class="booking-card__top">
@@ -159,7 +147,7 @@
                 {% endif %}
             </article>
         {% empty %}
-            <p class="muted">Nu ai cereri create de pe acest cont.</p>
+            {% include "components/_empty_state.html" with title="Nu ai cereri create de pe acest cont" body="Cand ai nevoie de ajutor pentru tine, le vezi aici separat de activitatea de voluntar." %}
         {% endfor %}
     </div>
 </section>
@@ -171,7 +159,7 @@
             <h2>Ajutorul meu activ</h2>
         </div>
     </header>
-    <div class="booking-grid">
+    <div class="booking-grid"{% if assigned_requests %} data-skeleton data-skeleton-duration="520"{% endif %}>
         {% for req in assigned_requests %}
             <article class="booking-card">
                 <div class="booking-card__top">
@@ -218,14 +206,14 @@
                 {% endif %}
             </article>
         {% empty %}
-            <p class="muted">Nu ai cereri asignate inca.</p>
+            {% include "components/_empty_state.html" with title="Nu ai cereri asignate inca" body="Cand esti selectat pentru o cerere, aici apar datele de contact, istoricul si butonul de start." %}
         {% endfor %}
     </div>
 
     {% if applied_requests %}
         <div class="section card">
             <h3>Aplicatii trimise (in asteptare)</h3>
-            <div class="booking-grid">
+            <div class="booking-grid"{% if applied_requests %} data-skeleton data-skeleton-duration="480"{% endif %}>
                 {% for req in applied_requests %}
                     <article class="booking-card">
                         <div class="booking-card__top">

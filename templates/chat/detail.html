@@ -2,34 +2,33 @@
 {% load static %}
 {% block title %}Conversație #{{ conversation.id }}{% endblock %}
 {% block content %}
-<div class="section card glass"
+<section class="section civic-screen"
      data-chat-detail
      data-conversation-id="{{ conversation.id }}"
      data-current-user-id="{{ user.id }}">
-    <div class="list-hero">
-        <div>
-            <p class="muted">Conversație</p>
-            <h1>#{{ conversation.id }}</h1>
-            <div class="pill-row">
-                {% if conversation.help_request %}
-                    {% include "components/_badge.html" with label="Cerere #"|add:conversation.help_request.id|stringformat:"s"|add:": "|add:conversation.help_request.title variant="ghost" %}
-                {% endif %}
-                {% if conversation.ad %}
-                    {% include "components/_badge.html" with label="Anunț: "|add:conversation.ad.title variant="ghost" %}
-                    {% if conversation.ad.is_urgent %}{% include "components/_badge.html" with label="Urgent" variant="urgent" %}{% endif %}
-                {% endif %}
-                {% if conversation.booking %}
-                    {% include "components/_badge.html" with label="Booking #"|add:conversation.booking.id|stringformat:"s" variant="ghost" %}
-                {% endif %}
-                <span class="chat-status chat-status--connecting" data-chat-status aria-live="polite">conectare…</span>
-            </div>
-        </div>
-        <div>
-            {% include "components/_button.html" with label="Înapoi" href=back_url|default:"/chat/" variant="ghost" %}
-        </div>
+  <header class="civic-view-header">
+    <div>
+      <p class="civic-eyebrow">Conversație · #{{ conversation.id }}</p>
+      <h1>Mesajele tale</h1>
+      <div class="pill-row">
+        {% if conversation.help_request %}
+          {% include "components/_badge.html" with label="Cerere #"|add:conversation.help_request.id|stringformat:"s"|add:": "|add:conversation.help_request.title variant="ghost" %}
+        {% endif %}
+        {% if conversation.ad %}
+          {% include "components/_badge.html" with label="Anunt: "|add:conversation.ad.title variant="ghost" %}
+        {% endif %}
+        {% if conversation.booking %}
+          {% include "components/_badge.html" with label="Booking #"|add:conversation.booking.id|stringformat:"s" variant="ghost" %}
+        {% endif %}
+        <span class="chat-status chat-status--connecting" data-chat-status aria-live="polite">conectare…</span>
+      </div>
     </div>
+    <a class="btn-secondary" href="{{ back_url|default:'/chat/' }}">Inapoi la conversatii</a>
+  </header>
 
-    <div class="messages-thread" data-messages aria-live="polite" aria-label="Fir de mesaje">
+  <div class="card civic-chat-detail">
+    <div class="civic-chat-detail__thread">
+      <div class="messages-thread" data-messages aria-live="polite" aria-label="Fir de mesaje">
         {% for msg in conversation.messages.all %}
             <article class="message-card {% if msg.sender == user %}mine{% endif %}" data-message-id="{{ msg.id }}">
                 <header class="message-card__meta muted">
@@ -45,19 +44,42 @@
         {% empty %}
             {% include "components/_empty_state.html" with icon="💬" title="Niciun mesaj încă" body="Scrie primul mesaj pentru a porni conversația." %}
         {% endfor %}
-    </div>
+          </div>
 
-    <div class="chat-typing muted" data-typing aria-live="polite" hidden></div>
+          <div class="chat-typing muted" data-typing aria-live="polite" hidden></div>
 
-    <form method="post" enctype="multipart/form-data" class="chat-composer" data-composer novalidate>
+          <form method="post" enctype="multipart/form-data" class="chat-composer" data-composer novalidate>
         {% csrf_token %}
         {% include "components/_form_field.html" with field=form.text hide_label=True %}
         {% include "components/_form_field.html" with field=form.attachment %}
+        <p class="muted text-sm">Enter trimite mesajul, iar Shift+Enter adauga un rand nou.</p>
         <div class="actions-row">
             {% include "components/_button.html" with label="Trimite" variant="primary" %}
         </div>
-    </form>
-</div>
+          </form>
+        </div>
+
+        <aside class="civic-chat-detail__aside">
+          <h3>Context conversație</h3>
+          <p class="muted">Participanti:</p>
+          <ul class="icon-list">
+            {% for p in conversation.participants.all %}
+              <li>
+                <span class="avatar avatar-oval">{{ p.display_name|first|upper }}</span>
+                <div>{{ p.display_name }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if conversation.booking %}
+            <div class="civic-chat-detail__aside-box">
+              <strong>Cerere activa</strong>
+              <p class="muted">Cod: #{{ conversation.booking.id }}</p>
+              <a class="btn-ghost slim" href="{% url 'bookings:detail' conversation.booking.id %}">Deschide cererea</a>
+            </div>
+          {% endif %}
+        </aside>
+      </div>
+    </section>
 
 <script src="{% static 'js/ws.js' %}"></script>
 <script>

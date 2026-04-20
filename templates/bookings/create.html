@@ -1,232 +1,205 @@
 {% extends "base.html" %}
-{% block title %}Cerere noua de ajutor{% endblock %}
+{% block title %}Cerere nouă de ajutor{% endblock %}
 {% block content %}
-<section class="section booking-simple">
-    <article class="card booking-simple__header">
+<div class="view help-create">
+    <div class="view-header">
         <div>
-            <div class="badge">Cerere rapida</div>
-            <h1>Trimite o cerere de ajutor in cativa pasi simpli</h1>
-            <p class="muted">Completezi detaliile esentiale, iar noi te ajutam sa gasesti voluntarul potrivit.</p>
+            <div class="eyebrow" style="margin-bottom:6px;">Cerere de ajutor · 4 pași</div>
+            <h1 class="view-title">Cere ajutor de la comunitate</h1>
+            <p class="view-sub">Spune-ne de ce ai nevoie. Cererea va fi publicată voluntarilor verificați din aceeași zonă.</p>
         </div>
-        <div class="booking-simple__steps">
-            <span class="chip chip-ghost">1. Categorie</span>
-            <span class="chip chip-ghost">2. Adresa</span>
-            <span class="chip chip-ghost">3. Interval</span>
+        <div class="view-meta">
+            <div><span class="k">vizibilitate</span> <span class="v">voluntari verificați</span></div>
+            <div><span class="k">cost</span> <span class="v">gratuit</span></div>
         </div>
-    </article>
+    </div>
 
-    <div class="booking-simple__layout">
-        <article class="card booking-simple__form-card">
-            <form method="post" class="glass-lite booking-create-form booking-create-form--simple" id="booking-create-form">
-                {% csrf_token %}
-                {% if form.non_field_errors %}
-                    <div class="alert error">
-                        {% for error in form.non_field_errors %}
-                            <div>{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+    <ol class="help-stepper" aria-label="Pași formular">
+        {% for s in "1234" %}
+            <li class="help-stepper__item{% if forloop.counter == 1 %} is-active{% endif %}">
+                <div class="help-stepper__label">Pasul {{ forloop.counter }}</div>
+                <div class="help-stepper__name">{% if forloop.counter == 1 %}Context{% elif forloop.counter == 2 %}Detalii{% elif forloop.counter == 3 %}Când & unde{% else %}Verificare{% endif %}</div>
+            </li>
+        {% endfor %}
+    </ol>
 
-                {% if form.guest_first_name %}
-                    <section class="booking-simple__section">
-                        <h2 class="booking-simple__section-title">Date de contact</h2>
-                        <div class="form-grid-2">
-                            <div class="field">
-                                <label for="{{ form.guest_first_name.id_for_label }}">{{ form.guest_first_name.label }}</label>
-                                {{ form.guest_first_name }}
-                                {% for error in form.guest_first_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                            </div>
-                            <div class="field">
-                                <label for="{{ form.guest_last_name.id_for_label }}">{{ form.guest_last_name.label }}</label>
-                                {{ form.guest_last_name }}
-                                {% for error in form.guest_last_name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                            </div>
+    <div class="help-create__layout">
+        <form method="post" class="help-create__form stack-lg" id="help-create-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                </div>
+            {% endif %}
+
+            {% if form.guest_first_name %}
+                <section class="panel">
+                    <div class="panel-h">
+                        <div>
+                            <div class="eyebrow" style="margin-bottom:4px;">Pasul A · acces</div>
+                            <h3>Date de contact</h3>
                         </div>
-                        <div class="form-grid-2">
-                            <div class="field">
-                                <label for="{{ form.guest_email.id_for_label }}">{{ form.guest_email.label }}</label>
-                                {{ form.guest_email }}
-                                {% for error in form.guest_email.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                            </div>
-                            <div class="field">
-                                <label for="{{ form.guest_phone.id_for_label }}">{{ form.guest_phone.label }}</label>
-                                {{ form.guest_phone }}
-                                {% for error in form.guest_phone.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                            </div>
+                    </div>
+                    <div class="panel-b stack">
+                        <div class="grid-2">
+                            {% include "components/_form_field.html" with field=form.guest_first_name %}
+                            {% include "components/_form_field.html" with field=form.guest_last_name %}
+                        </div>
+                        <div class="grid-2">
+                            {% include "components/_form_field.html" with field=form.guest_email %}
+                            {% include "components/_form_field.html" with field=form.guest_phone %}
                         </div>
                         {{ form.guest_city.as_hidden }}
                         {{ form.guest_street.as_hidden }}
                         {{ form.guest_address_details.as_hidden }}
-                    </section>
-                {% endif %}
-
-                <section class="booking-simple__section">
-                    <h2 class="booking-simple__section-title">Tipul de ajutor de care ai nevoie</h2>
-                    <div class="form-grid-2">
-                        <div class="field">
-                            <label for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
-                            {{ form.category }}
-                            {% if form.category.help_text %}<div class="help-text">{{ form.category.help_text }}</div>{% endif %}
-                            {% for error in form.category.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
-                        <div class="field">
-                            <label for="{{ form.service_query.id_for_label }}">{{ form.service_query.label }}</label>
-                            {{ form.service_query }}
-                            <datalist id="service-suggestions">
-                                {% for item in form.service_suggestions %}
-                                    <option value="{{ item.name }}" data-category="{{ item.category__name }}">{{ item.category__name }}</option>
-                                {% endfor %}
-                            </datalist>
-                            {{ form.service_suggestions|json_script:"service-meta" }}
-                            {% if form.service_query.help_text %}<div class="help-text">{{ form.service_query.help_text }}</div>{% endif %}
-                            {% for error in form.service_query.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
                     </div>
+                </section>
+            {% endif %}
 
-                    <div class="field">
-                        <label for="{{ form.service.id_for_label }}">{{ form.service.label }}</label>
-                        {{ form.service }}
-                        {% if form.service.help_text %}<div class="help-text">{{ form.service.help_text }}</div>{% endif %}
-                        {% for error in form.service.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            <section class="panel">
+                <div class="panel-h">
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 1 · context</div>
+                        <h3>Ce fel de ajutor îți trebuie?</h3>
                     </div>
-
+                </div>
+                <div class="panel-b stack">
                     <div class="field">
-                        <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                        <label>Categorie <span class="req">*</span></label>
+                        <div class="row wrap chip-row" id="category-chips">
+                            {% for choice in form.category.field.queryset %}
+                                <button type="button" class="chip" data-category-id="{{ choice.pk }}">{{ choice.name }}</button>
+                            {% endfor %}
+                        </div>
+                        <div style="display:none;">{{ form.category }}</div>
+                        {% if form.category.errors %}<div class="hint danger-text">{{ form.category.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="field">
+                        <label for="id_service_query">Tip de ajutor</label>
+                        {{ form.service_query }}
+                        <datalist id="service-suggestions">
+                            {% for item in form.service_suggestions %}
+                                <option value="{{ item.name }}" data-category="{{ item.category__name }}">{{ item.category__name }}</option>
+                            {% endfor %}
+                        </datalist>
+                        {{ form.service_suggestions|json_script:"service-meta" }}
+                        <div class="hint">Alege mai intai categoria, ca sa restrangem serviciile disponibile.</div>
+                        <div class="hint">Exemplu: ajutor la cumpărături, însoțire la medic, mutat obiecte ușoare.</div>
+                    </div>
+                    <div style="display:none;">{{ form.service }}</div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-h">
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 2 · detalii</div>
+                        <h3>Descrie cererea</h3>
+                    </div>
+                </div>
+                <div class="panel-b stack">
+                    <div class="field">
+                        <label for="id_description">Povestește pe scurt</label>
                         {{ form.description }}
-                        {% for error in form.description.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                        <div class="hint">Fii specific: cât durează, ce efort e necesar, orice detaliu de acces.</div>
                     </div>
-                </section>
+                    <div class="field">
+                        <label>Cât de critic este?</label>
+                        <div class="seg urgency-seg">
+                            {% for value, label in form.urgency_level.field.choices %}
+                                <button type="button" data-value="{{ value }}">{{ label }}</button>
+                            {% endfor %}
+                        </div>
+                        <div style="display:none;">{{ form.urgency_level }}</div>
+                        <div class="hint">Cererile urgente sunt notificate imediat voluntarilor activi din zonă.</div>
+                    </div>
+                    <div class="field" style="display:none;">{{ form.is_urgent }}</div>
+                </div>
+            </section>
 
-                <section class="booking-simple__section">
-                    <h2 class="booking-simple__section-title">Adresa unde este nevoie de ajutor</h2>
+            <section class="panel">
+                <div class="panel-h">
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 3 · când & unde</div>
+                        <h3>Timp și adresă</h3>
+                    </div>
+                </div>
+                <div class="panel-b stack">
+                    <div class="grid-2">
+                        {% include "components/_form_field.html" with field=form.scheduled_start %}
+                        {% include "components/_form_field.html" with field=form.duration_minutes %}
+                    </div>
                     {% if form.saved_address %}
-                        <div class="field">
-                            <label for="{{ form.saved_address.id_for_label }}">{{ form.saved_address.label }}</label>
-                            {{ form.saved_address }}
-                            <div class="help-text">Selecteaza o adresa salvata sau completeaza manual campurile de mai jos.</div>
-                            {% for error in form.saved_address.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
+                        {% include "components/_form_field.html" with field=form.saved_address %}
                     {% endif %}
-
-                    <div class="form-grid-2">
-                        <div class="field">
-                            <label for="{{ form.address_city.id_for_label }}">{{ form.address_city.label }}</label>
-                            {{ form.address_city }}
-                            {% for error in form.address_city.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
-                        <div class="field">
-                            <label for="{{ form.address_line.id_for_label }}">{{ form.address_line.label }}</label>
-                            {{ form.address_line }}
-                            {% for error in form.address_line.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
+                    <div class="grid-2">
+                        {% include "components/_form_field.html" with field=form.address_city %}
+                        {% include "components/_form_field.html" with field=form.address_line %}
                     </div>
-
-                    <div class="field">
-                        <label for="{{ form.address_details.id_for_label }}">{{ form.address_details.label }}</label>
-                        {{ form.address_details }}
-                        {% for error in form.address_details.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                    </div>
-                </section>
-
-                <section class="booking-simple__section">
-                    <h2 class="booking-simple__section-title">Cand ai nevoie de ajutor</h2>
-                    <div class="form-grid-2">
-                        <div class="field">
-                            <label for="{{ form.scheduled_start.id_for_label }}">{{ form.scheduled_start.label }}</label>
-                            {{ form.scheduled_start }}
-                            {% for error in form.scheduled_start.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+                    {% include "components/_form_field.html" with field=form.address_details %}
+                    <div class="hint">Adresa exactă este vizibilă doar voluntarului după confirmare. Pe cerere se afișează doar cartierul.</div>
+                    <details class="help-create__advanced">
+                        <summary>Opțiuni avansate (opțional)</summary>
+                        <div class="stack" style="margin-top:12px;">
+                            {% include "components/_form_field.html" with field=form.provider %}
                         </div>
-                        <div class="field">
-                            <label for="{{ form.duration_minutes.id_for_label }}">{{ form.duration_minutes.label }}</label>
-                            {{ form.duration_minutes }}
-                            {% for error in form.duration_minutes.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="form-grid-2">
-                        <div class="field">
-                            <label for="{{ form.provider.id_for_label }}">{{ form.provider.label }}</label>
-                            {{ form.provider }}
-                            {% if form.provider.help_text %}<div class="help-text">{{ form.provider.help_text }}</div>{% endif %}
-                            {% for error in form.provider.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
-                        <div class="field">
-                            <label for="{{ form.urgency_level.id_for_label }}">{{ form.urgency_level.label }}</label>
-                            {{ form.urgency_level }}
-                            {% for error in form.urgency_level.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="field">
-                        <label class="booking-form__checkbox">
-                            {{ form.is_urgent }}
-                            <span>Marcheaza ca urgent</span>
-                        </label>
-                        {% for error in form.is_urgent.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
-                    </div>
-                </section>
-
-                <div class="actions-row booking-create-form__actions">
-                    <button class="btn-primary" type="submit">Trimite cererea</button>
-                    {% if user.is_authenticated %}
-                        <a class="btn-secondary" href="/bookings/">Ajutorul meu</a>
-                    {% else %}
-                        <a class="btn-secondary" href="/services/">Vezi categorii</a>
-                    {% endif %}
+                    </details>
                 </div>
-                <div class="booking-form__hint muted text-sm">Dupa trimitere, poti urmari progresul direct din cont.</div>
-            </form>
-        </article>
+            </section>
 
-        <aside class="booking-simple__aside">
-            <article class="card booking-simple__aside-card">
-                <h3>Inainte sa trimiti</h3>
-                <ul class="icon-list booking-simple__tips">
-                    <li>
-                        <span class="icon-bubble">1</span>
-                        <div>Descrie problema in 1-2 fraze clare.</div>
-                    </li>
-                    <li>
-                        <span class="icon-bubble">2</span>
-                        <div>Completeaza adresa exacta pentru potrivire mai rapida.</div>
-                    </li>
-                    <li>
-                        <span class="icon-bubble">3</span>
-                        <div>Daca nu alegi voluntar, sistemul cauta automat unul disponibil.</div>
-                    </li>
-                </ul>
-            </article>
-
-            <article class="card booking-simple__aside-card">
-                <h3>Categorii populare</h3>
-                <div class="booking-main__category-list">
-                    {% for category in categories %}
-                        <div class="booking-main__category-item">
-                            <strong>{{ category.name }}</strong>
-                            <span class="muted text-sm">{{ category.services_count }} tipuri de ajutor</span>
-                        </div>
-                    {% empty %}
-                        <p class="muted">Nu exista categorii active momentan.</p>
-                    {% endfor %}
+            <section class="panel">
+                <div class="panel-h">
+                    <div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 4 · publicare</div>
+                        <h3>Trimite cererea</h3>
+                    </div>
                 </div>
-            </article>
+                <div class="panel-b stack">
+                    <p class="muted">Verifică previzualizarea din dreapta. După trimitere poți urmări progresul direct din cont și din chat.</p>
+                    <div class="actions-row">
+                        <button class="btn primary" type="submit" data-pending-label="Se trimite cererea...">
+                            Publică cererea
+                        </button>
+                        {% if user.is_authenticated %}
+                            <a class="btn ghost" href="{% url 'bookings:list' %}">Cererile mele</a>
+                        {% else %}
+                            <a class="btn ghost" href="{% url 'pages:home' %}">Renunță</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </form>
 
-            <article class="card booking-simple__aside-card">
-                <h3>Exemple de ajutor</h3>
-                <ul class="booking-main__service-list">
-                    {% for service in popular_services %}
-                        <li>
-                            <span>{{ service.name }}</span>
-                            <span class="muted text-sm">{{ service.category.name }}</span>
-                        </li>
-                    {% empty %}
-                        <li class="muted">Nu exista exemple active momentan.</li>
-                    {% endfor %}
-                </ul>
-            </article>
+        <aside class="panel help-create__preview" aria-label="Previzualizare cerere">
+            <div class="panel-h">
+                <div>
+                    <div class="eyebrow" style="margin-bottom:4px;">Previzualizare</div>
+                    <h3 style="font-size:15px;">Cum o văd voluntarii</h3>
+                </div>
+            </div>
+            <div class="panel-b">
+                <div class="help-preview-card">
+                    <div class="row" style="justify-content:space-between; margin-bottom:10px;">
+                        <span class="badge accent" id="preview-category-badge">—</span>
+                        <span class="badge danger" id="preview-urgency-badge" style="display:none;">urgent</span>
+                    </div>
+                    <div class="serif help-preview-card__title" id="preview-title">Titlul cererii apare aici…</div>
+                    <div class="muted help-preview-card__desc" id="preview-desc">Descrierea pe scurt…</div>
+                    <div class="divider" style="margin:14px 0;"></div>
+                    <div class="row" style="gap:14px; font-size:12px; color:var(--ink-2);">
+                        <span class="row" style="gap:4px;"><span aria-hidden="true">🕒</span><span id="preview-when">—</span></span>
+                        <span class="row" style="gap:4px;"><span aria-hidden="true">📍</span><span id="preview-city">—</span></span>
+                    </div>
+                </div>
+                <div class="help-preview-meta">
+                    <div class="kv"><dt>Durată</dt><dd id="preview-duration">—</dd></div>
+                    <div class="kv"><dt>Cost</dt><dd><b>gratuit</b> · platformă non-profit</dd></div>
+                    <div class="kv"><dt>Răspuns</dt><dd>10–60 min în funcție de oraș</dd></div>
+                </div>
+            </div>
         </aside>
     </div>
-</section>
+</div>
 
 <script>
   (function () {
@@ -240,7 +213,22 @@
     const guestStreet = document.getElementById("id_guest_street");
     const guestDetails = document.getElementById("id_guest_address_details");
     const detailsInput = document.getElementById("id_address_details");
-    const formEl = document.getElementById("booking-create-form");
+    const formEl = document.getElementById("help-create-form");
+    const urgencySeg = document.querySelector(".urgency-seg");
+    const urgencySelect = document.getElementById("id_urgency_level");
+    const urgentCheckbox = document.getElementById("id_is_urgent");
+    const descInput = document.getElementById("id_description");
+    const startInput = document.getElementById("id_scheduled_start");
+    const durationInput = document.getElementById("id_duration_minutes");
+    const categoryChips = document.querySelectorAll("#category-chips .chip");
+
+    const previewCategoryBadge = document.getElementById("preview-category-badge");
+    const previewUrgencyBadge = document.getElementById("preview-urgency-badge");
+    const previewTitle = document.getElementById("preview-title");
+    const previewDesc = document.getElementById("preview-desc");
+    const previewWhen = document.getElementById("preview-when");
+    const previewCity = document.getElementById("preview-city");
+    const previewDuration = document.getElementById("preview-duration");
 
     const serviceMetaEl = document.getElementById("service-meta");
     const serviceMeta = serviceMetaEl ? JSON.parse(serviceMetaEl.textContent) : [];
@@ -286,40 +274,109 @@
       const exact = options.find((opt) => opt.textContent.trim().toLowerCase() === value);
       const partial = options.find((opt) => opt.textContent.trim().toLowerCase().includes(value));
       const candidate = exact || partial;
-      if (candidate) {
-        serviceSelect.value = candidate.value;
-      }
+      if (candidate) serviceSelect.value = candidate.value;
     };
 
-    categorySelect?.addEventListener("change", rebuildServiceOptions);
-    serviceSelect?.addEventListener("change", () => {
-      const selected = serviceSelect.options[serviceSelect.selectedIndex];
-      if (selected && selected.value && serviceQuery && !serviceQuery.value.trim()) {
-        serviceQuery.value = selected.textContent.trim();
-      }
-    });
-    serviceQuery?.addEventListener("change", matchServiceFromQuery);
-    serviceQuery?.addEventListener("blur", matchServiceFromQuery);
+    const selectCategoryChip = (id) => {
+      categoryChips.forEach((c) => c.classList.toggle("active", c.dataset.categoryId === String(id)));
+    };
 
-    savedAddress?.addEventListener("change", () => {
-      if (!savedAddress.value) return;
-      if (cityInput) cityInput.value = "";
-      if (lineInput) lineInput.value = "";
-      if (detailsInput) detailsInput.value = "";
+    categoryChips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        if (!categorySelect) return;
+        const id = chip.dataset.categoryId;
+        categorySelect.value = id;
+        categorySelect.dispatchEvent(new Event("change"));
+        selectCategoryChip(id);
+      });
     });
+
+    if (urgencySeg && urgencySelect) {
+      const syncUrgencyButtons = () => {
+        urgencySeg.querySelectorAll("button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.value === urgencySelect.value);
+        });
+      };
+      urgencySeg.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          urgencySelect.value = btn.dataset.value;
+          urgencySelect.dispatchEvent(new Event("change"));
+          if (urgentCheckbox) {
+            urgentCheckbox.checked = btn.dataset.value === "critical" || btn.dataset.value === "high";
+          }
+          syncUrgencyButtons();
+          syncPreview();
+        });
+      });
+      syncUrgencyButtons();
+    }
 
     const syncGuestAddress = () => {
       if (guestCity && cityInput) guestCity.value = cityInput.value;
       if (guestStreet && lineInput) guestStreet.value = lineInput.value;
       if (guestDetails && detailsInput) guestDetails.value = detailsInput.value;
     };
-    cityInput?.addEventListener("input", syncGuestAddress);
+
+    const syncPreview = () => {
+      if (previewCategoryBadge && categorySelect) {
+        const selected = categorySelect.options[categorySelect.selectedIndex];
+        previewCategoryBadge.textContent = selected && selected.value ? selected.textContent.trim() : "categorie";
+      }
+      if (previewUrgencyBadge && urgencySelect) {
+        const isUrgent = urgencySelect.value === "critical" || urgencySelect.value === "high";
+        previewUrgencyBadge.style.display = isUrgent ? "inline-flex" : "none";
+      }
+      if (previewTitle) {
+        const typed = (serviceQuery && serviceQuery.value.trim()) || (descInput && descInput.value.trim().slice(0, 80));
+        previewTitle.textContent = typed || "Titlul cererii apare aici…";
+      }
+      if (previewDesc && descInput) {
+        previewDesc.textContent = descInput.value.trim() || "Descrierea pe scurt…";
+      }
+      if (previewCity && cityInput) {
+        previewCity.textContent = cityInput.value.trim() || "—";
+      }
+      if (previewWhen && startInput) {
+        previewWhen.textContent = startInput.value ? startInput.value.replace("T", " ") : "—";
+      }
+      if (previewDuration && durationInput) {
+        previewDuration.textContent = durationInput.value ? `${durationInput.value} min` : "—";
+      }
+    };
+
+    categorySelect?.addEventListener("change", () => {
+      rebuildServiceOptions();
+      selectCategoryChip(categorySelect.value);
+      syncPreview();
+    });
+    serviceSelect?.addEventListener("change", () => {
+      const selected = serviceSelect.options[serviceSelect.selectedIndex];
+      if (selected && selected.value && serviceQuery && !serviceQuery.value.trim()) {
+        serviceQuery.value = selected.textContent.trim();
+      }
+      syncPreview();
+    });
+    serviceQuery?.addEventListener("change", matchServiceFromQuery);
+    serviceQuery?.addEventListener("blur", matchServiceFromQuery);
+    serviceQuery?.addEventListener("input", syncPreview);
+    descInput?.addEventListener("input", syncPreview);
+    cityInput?.addEventListener("input", () => { syncGuestAddress(); syncPreview(); });
     lineInput?.addEventListener("input", syncGuestAddress);
     detailsInput?.addEventListener("input", syncGuestAddress);
+    startInput?.addEventListener("input", syncPreview);
+    durationInput?.addEventListener("input", syncPreview);
+    savedAddress?.addEventListener("change", () => {
+      if (!savedAddress.value) return;
+      if (cityInput) cityInput.value = "";
+      if (lineInput) lineInput.value = "";
+      if (detailsInput) detailsInput.value = "";
+    });
     formEl?.addEventListener("submit", syncGuestAddress);
 
     rebuildServiceOptions();
+    if (categorySelect) selectCategoryChip(categorySelect.value);
     syncGuestAddress();
+    syncPreview();
   })();
 </script>
 {% endblock %}

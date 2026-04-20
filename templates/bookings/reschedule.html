@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Reprogramează comanda #{{ booking.id }}{% endblock %}
+{% block title %}Reprogrameaza cererea #{{ booking.id }}{% endblock %}
 {% block content %}
 <div class="section card form-layout">
     <div class="form-side">
-        <p class="muted">Comanda #{{ booking.id }}</p>
+        <p class="muted">Cerere #{{ booking.id }}</p>
         <h1>Propune reprogramare</h1>
         <div class="summary-box">
             <div class="summary-row">
@@ -11,23 +11,32 @@
                 <span>{{ booking.service }}</span>
             </div>
             <div class="summary-row">
-                <span class="label">Data curentă</span>
+                <span class="label">Data curenta</span>
                 <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
             </div>
             <div class="summary-row">
-                <span class="label">Durată</span>
+                <span class="label">Durata</span>
                 <span>{{ booking.duration_minutes }} min</span>
             </div>
-            <p class="muted">Propune o nouă dată/ora. Ne asigurăm că prestatorul este liber.</p>
+            <p class="muted">Propune o noua data si ora. Verificam in continuare disponibilitatea voluntarului.</p>
         </div>
     </div>
     <div class="form-main">
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
             <div class="actions-row">
-                <button class="btn-primary" type="submit">Trimite solicitarea</button>
-                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Renunță</a>
+                <button class="btn-primary" type="submit" data-pending-label="Se trimite solicitarea...">Trimite solicitarea</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Renunta</a>
             </div>
         </form>
     </div>

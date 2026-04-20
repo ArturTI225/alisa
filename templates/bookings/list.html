@@ -1,26 +1,27 @@
 ﻿{% extends "base.html" %}
-{% block title %}Comenzile mele{% endblock %}
+{% block title %}Cererile mele{% endblock %}
 {% block content %}
 <div class="section">
     <div class="list-hero">
         <div>
-            <p class="muted">Rezervarile tale</p>
-            <h1>Comenzile mele</h1>
+            <p class="muted">Cererile tale</p>
+            <h1>Cererile mele</h1>
+            <p class="muted">Aici vezi rapid ce e confirmat, ce mai asteapta si ce trebuie reprogramat.</p>
             <div class="pill-row">
                 <span class="stat-pill">Total: {{ bookings|length }}</span>
                 <span class="chip chip-ghost">Filtre inteligente</span>
             </div>
         </div>
         <div class="actions-row">
-            <a class="btn-primary" href="/bookings/new/">Rezerva</a>
+            <a class="btn-primary" href="/bookings/new/">Cere ajutor</a>
         </div>
     </div>
 
     {% if bookings %}
         <div class="filters-bar">
             <div class="field">
-                <label for="booking-search" class="label">Cauta</label>
-                <input id="booking-search" type="search" placeholder="serviciu, prestator sau adresa">
+                <label for="booking-search" class="label">Cauta rapid</label>
+                <input id="booking-search" type="search" placeholder="Ex: instalatie, voluntar, Strada Test 10">
             </div>
             <div class="field">
                 <label for="booking-sort" class="label">Sortare</label>
@@ -43,7 +44,7 @@
         <div class="actions-row" style="margin:12px 0;">
             <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">Export calendar (ICS)</a>
         </div>
-        <div class="booking-grid">
+        <div class="booking-grid" data-skeleton data-skeleton-duration="560">
             {% for booking in bookings %}
                 <div class="booking-card status-{{ booking.status }}" data-tilt data-status="{{ booking.status }}" data-date="{{ booking.scheduled_start|date:"c" }}" data-search="{{ booking.service }} {{ booking.provider|default:"" }} {{ booking.address }}">
                     <div class="booking-card__top">
@@ -59,7 +60,7 @@
                         <span>{{ booking.scheduled_start|date:"d M H:i" }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="label">Prestator</span>
+                        <span class="label">Voluntar</span>
                         <span>{{ booking.provider|default:"-" }}
                             {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
                         </span>
@@ -83,11 +84,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="card">
-            <h3>Nicio comanda inca</h3>
-            <p class="muted">Rezerva un prestator si urmareste starea comenzii aici.</p>
-            <a class="btn-primary" href="/bookings/new/">Incepe o rezervare</a>
-        </div>
+        {% include "components/_empty_state.html" with title="Nu ai cereri active inca" body="Cand trimiti prima cerere, aici vezi statusul, reprogramarile si pasii urmatori." cta_label="Cere ajutor" cta_href="/bookings/new/" %}
         <section class="section card glass section-slim" style="margin-top:16px;">
             <header class="section-header">
                 <div>
@@ -104,8 +101,8 @@
                 </div>
                 <div class="flow-card glass-lite">
                     <div class="icon-circle">2</div>
-                    <h3>Prestator asignat</h3>
-                    <p class="muted">Alegi sau primesti un prestator disponibil.</p>
+                    <h3>Voluntar asignat</h3>
+                    <p class="muted">Alegi sau primesti un voluntar disponibil.</p>
                 </div>
                 <div class="flow-card glass-lite">
                     <div class="icon-circle">3</div>

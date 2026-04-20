@@ -4,12 +4,12 @@
 <div class="section card glass">
     <div class="section-header">
         <div>
-            <p class="muted">Rezervări recurente</p>
+            <p class="muted">Cereri recurente</p>
             <h1>Seriile tale</h1>
         </div>
         <div class="actions-row">
             <a class="btn-primary" href="{% url 'bookings:recurring_create' %}">Creează serie</a>
-            <a class="btn-ghost" href="{% url 'bookings:list' %}">Înapoi la comenzi</a>
+            <a class="btn-ghost" href="{% url 'bookings:list' %}">Înapoi la cereri</a>
         </div>
     </div>
     <div class="deck-grid">
@@ -24,7 +24,7 @@
                 <p class="muted">Adresă: {{ rule.address }}</p>
                 <div class="pill-row">
                     <span class="chip chip-ghost">Oc: {{ rule.occurrences }}</span>
-                    {% if rule.provider %}<span class="chip chip-ghost">Prestator: {{ rule.provider }}</span>{% endif %}
+                    {% if rule.provider %}<span class="chip chip-ghost">Voluntar: {{ rule.provider }}</span>{% endif %}
                 </div>
                 <div class="actions-row">
                     {% if rule.is_active %}
@@ -37,7 +37,7 @@
                 </div>
             </div>
         {% empty %}
-            {% include "components/_empty_state.html" with icon="🔁" title="Nicio serie recurentă" body="Transformă o rezervare existentă într-o serie recurentă ca să nu mai plănuiești de fiecare dată." %}
+            {% include "components/_empty_state.html" with icon="🔁" title="Nicio serie recurentă" body="Transformă o cerere existentă într-o serie recurentă ca să nu mai plănuiești de fiecare dată." %}
         {% endfor %}
     </div>
 </div>

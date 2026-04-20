@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Avatar partial. Renders a user initial inside a colored rounded square.
 
   Required:
@@ -10,7 +10,7 @@
 
   Example:
     {% include "components/_avatar.html" with user=request.user %}
-#}
+{% endcomment %}
 {% with display=user.display_name|default:user.username %}
 <span class="avatar{% if size %} avatar--{{ size }}{% endif %}{% if oval %} avatar-oval{% endif %}"
       aria-hidden="true" title="{{ display }}">{{ display|first|upper }}</span>

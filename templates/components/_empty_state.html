@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Empty-state partial.
 
   Required:
@@ -16,7 +16,7 @@
        title="Niciun mesaj încă"
        body="Scrie primul mesaj pentru a porni conversația."
        cta_label="Vezi toate conversațiile" cta_href="/chat/" %}
-#}
+{% endcomment %}
 <div class="es" role="status">
   {% if icon %}<div class="es__icon" aria-hidden="true">{{ icon }}</div>{% endif %}
   <h3 class="es__title">{{ title }}</h3>

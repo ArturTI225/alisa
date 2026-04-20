@@ -1,22 +1,22 @@
 {% extends "base.html" %}
-{% block title %}{{ provider.display_name }} - Profil prestator{% endblock %}
+{% block title %}{{ provider.display_name }} - Profil voluntar{% endblock %}
 {% block content %}
 <div class="section card glass split-hero">
     <div>
-        <div class="badge">Prestator verificat</div>
+        <div class="badge">Voluntar verificat</div>
         <h1>{{ provider.display_name }}</h1>
-        <p class="muted">{{ provider.provider_profile.bio|default:"Prestator de încredere pentru lucrări casnice." }}</p>
+        <p class="muted">{{ provider.provider_profile.bio|default:"Voluntar de încredere pentru lucrări casnice." }}</p>
         <div class="pill-row">
             <span class="chip chip-ghost">Oraș: {{ provider.city|default:"-" }}</span>
             <span class="chip chip-ghost">Experiență: {{ provider.provider_profile.experience_years }} ani</span>
-            <span class="chip chip-ghost">Proiect social (fără tarif)</span>
+            <span class="chip chip-ghost">Ajutor gratuit din comunitate</span>
         </div>
         <div class="pill-row">
             <span class="chip status-completed">Rating: {{ avg_rating }} ({{ reviews_count }} recenzii)</span>
             <span class="chip chip-ghost">Joburi finalizate: {{ completed_jobs }}</span>
         </div>
         <div class="actions-row">
-            <a class="btn-primary" href="/bookings/new/">Rezervă acest prestator</a>
+            <a class="btn-primary" href="/bookings/new/">Contactează acest voluntar</a>
             {% if user.is_authenticated %}
             <form method="post" action="{% url 'accounts:favorite_toggle' 'provider' provider.id %}">
                 {% csrf_token %}

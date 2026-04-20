@@ -6,27 +6,28 @@
         <div>
             <p class="muted">Inbox</p>
             <h1>Notificările tale</h1>
+            <p class="muted">Găsești aici noutățile importante din chat, cereri și cereri comunitare.</p>
         </div>
         <div class="actions-row">
             <form method="post" action="{% url 'accounts:notifications_mark_all' %}">
                 {% csrf_token %}
-                <button class="btn-secondary" type="submit">Marchează tot citit</button>
+                <button class="btn-secondary" type="submit">Marchează tot ca citit</button>
             </form>
             <a class="btn-ghost" href="{% url 'accounts:notification_preferences' %}">Preferințe</a>
         </div>
     </div>
-    <div class="notif-list">
+    <div class="notif-list"{% if notifications %} data-skeleton data-skeleton-duration="520"{% endif %}>
         {% for notif in notifications %}
             <div class="notif-item {% if not notif.is_read %}unread{% endif %}">
                 <strong>{{ notif.title }}</strong>
-                <p>{{ notif.body }}</p>
+                <p>{{ notif.body|default:"Avem o actualizare scurtă pentru tine." }}</p>
                 <p class="muted">{{ notif.created_at|date:"d M Y H:i" }}</p>
                 {% if notif.link %}
                     <a class="btn-ghost" href="{{ notif.link }}">Deschide</a>
                 {% endif %}
             </div>
         {% empty %}
-            {% include "components/_empty_state.html" with icon="🔔" title="Nicio notificare încă" body="Te vom anunța aici când apar evenimente legate de rezervări, cereri sau conversații." %}
+            {% include "components/_empty_state.html" with title="Totul este la zi" body="Când apare ceva important legat de cereri, cereri sau conversații, revii aici și vezi tot pe scurt." %}
         {% endfor %}
     </div>
 </div>

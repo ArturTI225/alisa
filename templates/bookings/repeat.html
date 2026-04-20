@@ -1,16 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Replica comanda #{{ booking.id }}{% endblock %}
+{% block title %}Replica cererea #{{ booking.id }}{% endblock %}
 {% block content %}
-<div class="section card glass">
-    <h1>Replică comanda #{{ booking.id }}</h1>
-    <p class="muted">Serviciu: {{ booking.service }} · Adresă: {{ booking.address }}</p>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <div class="actions-row">
-            <button class="btn-primary" type="submit">Creează noua rezervare</button>
-            <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Înapoi</a>
+<div class="section card form-layout">
+    <div class="form-side">
+        <p class="muted">Cerere #{{ booking.id }}</p>
+        <h1>Replica cererea</h1>
+        <div class="summary-box">
+            <div class="summary-row">
+                <span class="label">Serviciu</span>
+                <span>{{ booking.service }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Adresa</span>
+                <span>{{ booking.address }}</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Durata</span>
+                <span>{{ booking.duration_minutes }} min</span>
+            </div>
+            <p class="muted">Pastrezi contextul original, dar poti schimba data si durata pentru noua cerere.</p>
         </div>
-    </form>
+    </div>
+    <div class="form-main">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit" data-pending-label="Se creeaza...">Creeaza noua cerere</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Inapoi</a>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

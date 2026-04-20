@@ -1,54 +1,273 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Conversatii{% endblock %}
 {% block content %}
-<div class="section card">
-    <div class="list-hero">
-        <div>
-            <p class="muted">Chat</p>
-            <h1>Conversatiile tale</h1>
-        </div>
-    </div>
+<section class="chat-workspace"
+         data-chat-workspace
+         data-conversation-id="{% if selected_conversation %}{{ selected_conversation.id }}{% endif %}"
+         data-current-user-id="{{ user.id }}">
     {% if conversations %}
-        <div class="booking-grid">
-            {% for convo in conversations %}
-                <div class="booking-card" data-status="">
-                    <div class="booking-card__top">
-                        <div class="muted">#{{ convo.id }}</div>
-                        {% if convo.ad and convo.ad.is_urgent %}
-                            <span class="chip chip-ghost">Anunt urgent</span>
-                        {% endif %}
-                    </div>
-                    <h3>
-                        {% if convo.help_request %}
-                            Cerere #{{ convo.help_request.id }}: {{ convo.help_request.title }}
-                        {% elif convo.ad %}
-                            {{ convo.ad.title }}
-                        {% elif convo.booking %}
-                            Booking #{{ convo.booking.id }}
-                        {% else %}
-                            Conversatie
-                        {% endif %}
-                    </h3>
-                    <div class="summary-row">
-                        <span class="label">Participanti</span>
-                        <span>
-                            {% for u in convo.participants.all %}
-                                {{ u.display_name }}{% if not forloop.last %}, {% endif %}
+    <div class="chat-workspace__grid" data-skeleton data-skeleton-duration="560">
+        <aside class="chat-workspace__list" aria-label="Lista conversatii">
+            <div class="chat-list-header">
+                <p class="civic-eyebrow">Conversatii</p>
+                <h1>Mesaje</h1>
+            </div>
+            <div class="chat-list-items">
+                {% for convo in conversations %}
+                    <a class="chat-list-item {% if selected_conversation and selected_conversation.id == convo.id %}is-active{% endif %}"
+                       href="{% url 'chat:conversation_list' %}?c={{ convo.id }}"
+                       {% if selected_conversation and selected_conversation.id == convo.id %}aria-current="page"{% endif %}>
+                        <div class="avatar chat-list-item__avatar">
+                            {% for participant in convo.participants.all %}
+                                {% if participant != user %}{{ participant.display_name|first|upper }}{% endif %}
                             {% endfor %}
-                        </span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Creat</span>
-                        <span>{{ convo.created_at|date:"d M H:i" }}</span>
-                    </div>
-                    <div class="actions-row">
-                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' convo.id %}">Deschide</a>
-                    </div>
+                        </div>
+                        <div class="chat-list-item__main">
+                            <div class="chat-list-item__row">
+                                <strong>
+                                    {% for participant in convo.participants.all %}
+                                        {% if participant != user %}{{ participant.display_name }}{% endif %}
+                                    {% endfor %}
+                                </strong>
+                                {% with last_message=convo.messages.last %}
+                                    {% if last_message %}
+                                    <span class="muted text-sm">{{ last_message.created_at|date:"d M H:i" }}</span>
+                                    {% else %}
+                                    <span class="muted text-sm">{{ convo.created_at|date:"d M H:i" }}</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                            {% with last_message=convo.messages.last %}
+                                {% if last_message %}
+                                    <p class="muted text-sm">{{ last_message.text|truncatechars:72 }}</p>
+                                {% else %}
+                                    <p class="muted text-sm">Conversatie noua.</p>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <section class="chat-workspace__thread" aria-label="Fir activ">
+            {% if selected_conversation %}
+            <header class="chat-thread-head">
+                <div class="avatar chat-thread-head__avatar">
+                    {% for participant in selected_conversation.participants.all %}
+                        {% if participant != user %}{{ participant.display_name|first|upper }}{% endif %}
+                    {% endfor %}
                 </div>
-            {% endfor %}
-        </div>
+                <div class="chat-thread-head__identity">
+                    <div class="chat-thread-head__name-row">
+                        <strong>
+                            {% for participant in selected_conversation.participants.all %}
+                                {% if participant != user %}{{ participant.display_name }}{% endif %}
+                            {% endfor %}
+                        </strong>
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user and participant.is_verified %}
+                                <span class="chat-chip chat-chip--ok">Verificata</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <p class="muted text-sm">
+                        cerere activa
+                        {% if selected_conversation.booking %}
+                        · RZ-2026-{{ selected_conversation.booking.id|stringformat:"05d" }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="chat-thread-head__actions">
+                    <button type="button" class="chat-thread-head__more" aria-label="Mai mult">...</button>
+                </div>
+            </header>
+
+            <div class="chat-thread-body" data-messages aria-live="polite" aria-label="Fir de mesaje">
+                <div class="chat-day-sep">{{ selected_conversation.messages.last.created_at|date:"l, d F"|default:"Conversatie activa" }}</div>
+                {% for msg in selected_conversation.messages.all %}
+                    <article class="chat-message {% if msg.sender == user %}chat-message--mine{% endif %}" data-message-id="{{ msg.id }}">
+                        <div class="chat-bubble">{{ msg.text|linebreaksbr }}</div>
+                        <time class="chat-message__time" datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"l, H:i" }}</time>
+                        {% if msg.attachment %}
+                            <a href="{{ msg.attachment.url }}" class="chat-attachment" rel="noopener">Atasament</a>
+                        {% endif %}
+                    </article>
+                {% empty %}
+                    <div class="chat-system-note">Niciun mesaj inca. Scrie primul mesaj pentru a porni conversatia.</div>
+                {% endfor %}
+            </div>
+
+            <div class="chat-typing muted" data-typing aria-live="polite" hidden></div>
+
+            <form method="post"
+                  action="{% url 'chat:conversation_detail' selected_conversation.id %}"
+                  enctype="multipart/form-data"
+                  class="chat-composer"
+                  data-composer
+                  novalidate>
+                {% csrf_token %}
+                {% include "components/_form_field.html" with field=form.text hide_label=True %}
+                {% include "components/_form_field.html" with field=form.attachment %}
+                <div class="chat-composer__bar">
+                    <p class="muted text-sm">Enter trimite mesajul, Shift+Enter adauga un rand nou.</p>
+                    <button type="submit" class="btn-primary">Trimite</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="chat-empty-thread">
+                <h2>Selecteaza o conversatie</h2>
+                <p class="muted">Alege un fir din stanga pentru a vedea mesajele.</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <aside class="chat-workspace__aside" aria-label="Detalii conversatie">
+            {% if selected_conversation %}
+                <div class="chat-contact-summary">
+                    <div class="avatar avatar-oval chat-contact-summary__avatar">
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user %}{{ participant.display_name|first|upper }}{% endif %}
+                        {% endfor %}
+                    </div>
+                    <strong>
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user %}{{ participant.display_name }}{% endif %}
+                        {% endfor %}
+                    </strong>
+                    <p class="muted text-sm">
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user %}{{ participant.city|default:"Romania" }}{% endif %}
+                        {% endfor %}
+                    </p>
+                    <p class="muted text-sm">Rating: 
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user %}{{ participant.rating_avg|default:"0.00" }}{% endif %}
+                        {% endfor %}
+                    </p>
+                    <div class="chat-contact-summary__stars">★★★★☆</div>
+                </div>
+
+                {% if selected_conversation.booking %}
+                <div class="chat-aside-card">
+                    <p class="civic-eyebrow">Cerere activa</p>
+                    <strong>{{ selected_conversation.booking.service.name }}</strong>
+                    <p class="muted text-sm">
+                        {{ selected_conversation.booking.scheduled_start|date:"D H:i" }}
+                        · {{ selected_conversation.booking.address.city }}
+                    </p>
+                    <a class="btn-secondary" href="{% url 'bookings:detail' selected_conversation.booking.id %}">Deschide cererea</a>
+                </div>
+                {% endif %}
+
+                <div>
+                    <p class="chat-aside-title">Verificari</p>
+                    <ul class="chat-check-list">
+                        {% for participant in selected_conversation.participants.all %}
+                            {% if participant != user %}
+                                <li>{% if participant.is_verified %}✓{% else %}•{% endif %} Identitate</li>
+                                <li>{% if participant.city %}✓{% else %}•{% endif %} Adresa confirmata</li>
+                                <li>{% if participant.phone %}✓{% else %}•{% endif %} Numar de telefon</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div>
+                    <p class="chat-aside-title">Reguli de comunicare</p>
+                    <ul class="chat-rule-list muted">
+                        <li>LaUsaTa este gratuit: nu cere si nu oferi bani pentru ajutor.</li>
+                        <li>Nu partaja date bancare sau coduri.</li>
+                        <li>Foloseste Raporteaza daca ceva pare in neregula.</li>
+                    </ul>
+                </div>
+            {% else %}
+                <p class="muted">Selecteaza o conversatie pentru detalii.</p>
+            {% endif %}
+        </aside>
+    </div>
     {% else %}
-        {% include "components/_empty_state.html" with icon="💬" title="Nicio conversație încă" body="Discuțiile apar aici după ce începi un booking sau răspunzi la o cerere de ajutor." cta_label="Caută ajutor" cta_href="/bookings/new/" %}
+        {% include "components/_empty_state.html" with title="Inca nu ai conversatii" body="Discutiile apar aici dupa ce incepi un booking sau raspunzi la o cerere de ajutor." cta_label="Cere ajutor" cta_href="/bookings/new/" %}
     {% endif %}
-</div>
+</section>
+
+<script src="{% static 'js/ws.js' %}"></script>
+<script>
+  (function () {
+    "use strict";
+    const root = document.querySelector("[data-chat-workspace]");
+    if (!root || !window.laWS) return;
+
+    const convoId = root.dataset.conversationId;
+    if (!convoId) return;
+
+    const meId = parseInt(root.dataset.currentUserId, 10);
+    const thread = root.querySelector("[data-messages]");
+    const composer = root.querySelector("[data-composer]");
+    const textArea = composer && composer.querySelector('textarea[name="text"]');
+    const typingEl = root.querySelector("[data-typing]");
+
+    function renderMessage(m) {
+      if (!thread || thread.querySelector('[data-message-id="' + m.id + '"]')) return;
+
+      const article = document.createElement("article");
+      article.className = "chat-message" + (m.sender_id === meId ? " chat-message--mine" : "");
+      article.dataset.messageId = m.id;
+
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+      bubble.textContent = m.text || "";
+
+      const time = document.createElement("time");
+      time.className = "chat-message__time";
+      const d = m.created_at ? new Date(m.created_at) : new Date();
+      time.dateTime = d.toISOString();
+      time.textContent = d.toLocaleString("ro-RO", { weekday: "long", hour: "2-digit", minute: "2-digit" });
+
+      article.append(bubble, time);
+
+      if (m.attachment_url) {
+        const a = document.createElement("a");
+        a.href = m.attachment_url;
+        a.className = "chat-attachment";
+        a.rel = "noopener";
+        a.textContent = "Atasament";
+        article.append(a);
+      }
+
+      const emptyState = thread.querySelector(".chat-system-note");
+      if (emptyState) emptyState.remove();
+
+      thread.appendChild(article);
+      article.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    const socket = window.laWS.connect("/ws/chat/" + convoId + "/", {
+      onEvent: function (data) {
+        if (data.event === "message.new" && data.message) {
+          renderMessage(data.message);
+        } else if (data.event === "message.typing" && data.user_id !== meId && typingEl) {
+          typingEl.textContent = (data.display_name || "Cineva") + " scrie...";
+          typingEl.hidden = false;
+          clearTimeout(typingEl._hideTimer);
+          typingEl._hideTimer = setTimeout(() => { typingEl.hidden = true; }, 3000);
+        }
+      }
+    });
+
+    if (textArea) {
+      let lastSent = 0;
+      textArea.addEventListener("input", () => {
+        const now = Date.now();
+        if (now - lastSent < 2000) return;
+        lastSent = now;
+        socket.send({ action: "typing" });
+      });
+    }
+
+    const last = thread && thread.lastElementChild;
+    if (last && last.scrollIntoView) last.scrollIntoView({ block: "end" });
+  })();
+</script>
 {% endblock %}

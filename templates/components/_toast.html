@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Toast partial. Rendered inside the flash container by base.html, but also
   available for ad-hoc inline toasts (e.g. in HTMX swaps).
 
@@ -11,7 +11,7 @@
 
   Example:
     {% include "components/_toast.html" with message="Modificările au fost salvate" level="success" %}
-#}
+{% endcomment %}
 <div class="toast toast--{{ level|default:"info" }}" role="status" aria-live="polite">
   <span class="toast__message">{{ message }}</span>
   {% if dismiss|default_if_none:True %}

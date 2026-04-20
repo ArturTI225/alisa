@@ -1,32 +1,32 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <style>
-        body { font-family: "Manrope", Arial, sans-serif; padding: 24px; color: #0f172a; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-        .badge { padding: 6px 10px; background: #0f766e; color: #f8fafc; border-radius: 8px; font-weight: 700; }
-        h1 { margin: 0 0 4px; }
+        body { font-family: "IBM Plex Sans", Arial, sans-serif; padding: 32px; color: #141f3c; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; border-top: 3px solid #1e40af; padding-top: 18px; }
+        .badge { padding: 6px 10px; background: #1e40af; color: #f8fafc; border-radius: 4px; font-weight: 600; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+        h1 { margin: 10px 0 4px; font-family: "IBM Plex Serif", Georgia, serif; font-weight: 500; letter-spacing: -0.01em; }
         .muted { color: #64748b; }
         table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e2e8f0; }
-        .total { font-size: 18px; font-weight: 700; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e2e8f0; }
+        th { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; font-weight: 500; }
     </style>
 </head>
 <body>
     <div class="header">
         <div>
-            <div class="badge">Factura</div>
-            <h1>Booking #{{ booking.id }}</h1>
-            <p class="muted">Data: {{ booking.created_at|date:"d M Y" }}</p>
+            <div class="badge">Certificat de ajutor</div>
+            <h1>Cerere #{{ booking.id }}</h1>
+            <p class="muted">Emis la {{ booking.completed_at|default:booking.created_at|date:"d M Y, H:i" }}</p>
         </div>
-        <div>
-            <p><strong>La u&#351;a ta</strong><br/>Platforma servicii la domiciliu</p>
+        <div style="text-align:right;">
+            <p><strong>LaUsaTa</strong><br/>Proiect comunitar non-profit</p>
         </div>
     </div>
-    <p><strong>Client:</strong> {{ booking.client.display_name }}</p>
-    <p><strong>Prestator:</strong> {{ booking.provider|default:"-" }}</p>
-    <p><strong>Serviciu:</strong> {{ booking.service }}</p>
+    <p><strong>Beneficiar:</strong> {{ booking.client.display_name }}</p>
+    <p><strong>Voluntar:</strong> {{ booking.provider|default:"-" }}</p>
+    <p><strong>Tip de ajutor:</strong> {{ booking.service }}</p>
     <p><strong>Adresa:</strong> {{ booking.address }}</p>
 
     <table>
@@ -35,9 +35,11 @@
             <th>Valoare</th>
         </tr>
         <tr>
-            <td>Platforma voluntara (non-comerciala)</td>
-            <td>Fara costuri</td>
+            <td>Ajutor oferit prin comunitatea LaUsaTa</td>
+            <td>Gratuit · fără costuri</td>
         </tr>
     </table>
+
+    <p class="muted" style="margin-top:24px; font-size: 12px;">LaUsaTa este o platformă comunitară non-comercială. Nu se percep taxe sau comisioane; voluntarii nu primesc plată pentru ajutorul oferit.</p>
 </body>
 </html>

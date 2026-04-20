@@ -43,6 +43,10 @@ LaUsaTa este o platforma comunitara functionala construita cu Django 5 si DRF. A
 - Baza de date alternativa: PostgreSQL prin `DATABASE_URL`
 - Limba implicita: romana
 
+## Documentatie UI
+
+- Ghidul de tokens, componente si shell UI este in `docs/UI.md`
+
 ## Fluxuri principale
 
 ### Help requests

@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Button partial. Renders either an <a> or <button> depending on whether href is set.
 
   Required:
@@ -17,7 +17,7 @@
   Example:
     {% include "components/_button.html" with label="Salvează" variant="primary" %}
     {% include "components/_button.html" with label="Anulează" href="/bookings/" variant="ghost" %}
-#}
+{% endcomment %}
 {% with btn_class="btn-"|add:variant|default:"btn-primary" %}
 {% if href %}
   <a href="{{ href }}"

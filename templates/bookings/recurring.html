@@ -1,23 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Rezervare recurentă{% endblock %}
+{% block title %}Cerere recurenta{% endblock %}
 {% block content %}
-<div class="section card glass split-hero">
-    <div>
-        <div class="badge">Serie recurentă</div>
-        <h1>Programează serviciul tău preferat să revină automat</h1>
-        <p class="muted">Setează frecvența (săptămânal/bilunar/lunar), data și ora, iar noi generăm rezervările.</p>
-        <div class="pill-row">
-            <span class="chip chip-ghost">Status live & notificări</span>
-            <span class="chip chip-ghost">Poți opri/skip oricând</span>
+<div class="section card form-layout">
+    <div class="form-side">
+        <p class="muted">Cereri recurente</p>
+        <h1>Creeaza o serie recurenta</h1>
+        <div class="summary-box">
+            <p class="muted">Alegi serviciul, adresa si ritmul aparitiilor, iar platforma genereaza intreaga serie.</p>
+            <div class="summary-row">
+                <span class="label">Beneficiu</span>
+                <span>Planifici dintr-o singura actiune</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Control</span>
+                <span>Poti opri sau sari peste aparitii</span>
+            </div>
+            <div class="summary-row">
+                <span class="label">Vizibilitate</span>
+                <span>Status live si notificari in cont</span>
+            </div>
         </div>
     </div>
-    <div class="glass-lite" style="padding:16px;border-radius:14px;">
+    <div class="form-main">
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
             <div class="actions-row">
-                <button class="btn-primary" type="submit">Creează seria</button>
-                <a class="btn-secondary" href="{% url 'bookings:recurring_list' %}">Înapoi</a>
+                <button class="btn-primary" type="submit" data-pending-label="Se creeaza seria...">Creeaza seria</button>
+                <a class="btn-secondary" href="{% url 'bookings:recurring_list' %}">Inapoi</a>
             </div>
         </form>
     </div>
