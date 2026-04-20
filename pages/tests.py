@@ -137,7 +137,7 @@ class RoleBasedHomeTests(TestCase):
         self.assertIn("my_client_requests", response.context)
         self.assertIn(own_request, response.context["my_client_requests"])
         self.assertNotIn(own_request, response.context["open_requests"])
-        self.assertContains(response, "Cererile mele (ca client)")
+        self.assertContains(response, "Cererile mele (ca solicitant)")
 
     def test_worker_dashboard_shows_open_booking_requests(self):
         booking = Booking.objects.create(
@@ -157,4 +157,15 @@ class RoleBasedHomeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("open_bookings", response.context)
         self.assertIn(booking, response.context["open_bookings"])
-        self.assertContains(response, f"Rezervare #{booking.id}")
+        self.assertContains(response, f"Cerere #{booking.id}")
+
+    def test_home_includes_phase_four_accessibility_shell(self):
+        self.client.login(username="client_home", password="pass123")
+
+        response = self.client.get(reverse("pages:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sari direct la continut")
+        self.assertContains(response, 'id="command-palette"', html=False)
+        self.assertContains(response, 'data-open-command-palette', html=False)
+        self.assertContains(response, 'aria-current="page"', html=False)

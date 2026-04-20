@@ -441,6 +441,7 @@ class BookingDetailView(LoginRequiredMixin, generic.DetailView):
                     and self.object.status == Booking.Status.AWAITING_CLIENT
                 ),
                 "attachment_form": BookingAttachmentForm(),
+                "message_form": DisputeMessageForm(),
                 "attachments": self.object.attachments.select_related(
                     "uploaded_by"
                 ),
@@ -1218,6 +1219,13 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
             reviews.aggregate(avg=Avg("rating"))["avg"] or 0, 2
         )
         stats["reviews_count"] = reviews.count()
+        minutes_donated = (
+            recent.filter(status=Booking.Status.COMPLETED).aggregate(
+                total=models.Sum("duration_minutes")
+            )["total"]
+            or 0
+        )
+        stats["hours_30d"] = round(minutes_donated / 60, 1) if minutes_donated else 0
         ctx.update(
             {
                 "upcoming": upcoming,
@@ -2258,10 +2266,11 @@ class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
             monthly.save(update_fields=["completed_requests", "total_hours", "updated_at"])
             try:
                 from .tasks import generate_certificate
+                request_id = getattr(request, "request_id", "")
                 if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
-                    certificate_id = generate_certificate(help_request.pk)
+                    certificate_id = generate_certificate(help_request.pk, request_id=request_id)
                 else:
-                    generate_certificate.delay(help_request.pk)
+                    generate_certificate.delay(help_request.pk, request_id)
                     certificate_id = None
                 if certificate_id:
                     cert = CompletionCertificate.objects.filter(pk=certificate_id).first()

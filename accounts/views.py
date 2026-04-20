@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import generic, View
@@ -56,15 +57,48 @@ class ProfileView(LoginRequiredMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         user = self.request.user
-        ctx["addresses"] = user.addresses.all()
-        ctx["favorite_services"] = FavoriteService.objects.filter(
-            user=user
-        ).select_related("service")
-        ctx["favorite_providers"] = FavoriteProvider.objects.filter(
+        addresses = user.addresses.order_by("-is_default", "label")
+        favorite_services = FavoriteService.objects.filter(user=user).select_related(
+            "service", "service__category"
+        )
+        favorite_providers = FavoriteProvider.objects.filter(
             user=user
         ).select_related("provider")
-        ctx["bookings_count"] = Booking.objects.filter(client=user).count()
-        ctx["profile"] = getattr(self.request.user, "provider_profile", None)
+        all_bookings = Booking.objects.filter(Q(client=user) | Q(provider=user))
+        active_statuses = [
+            Booking.Status.PENDING,
+            Booking.Status.CONFIRMED,
+            Booking.Status.IN_PROGRESS,
+            Booking.Status.AWAITING_CLIENT,
+            Booking.Status.RESCHEDULE_REQUESTED,
+            Booking.Status.DISPUTED,
+        ]
+        provider_profile = getattr(user, "provider_profile", None)
+        if provider_profile is not None:
+            provider_profile = (
+                provider_profile.__class__.objects.filter(pk=provider_profile.pk)
+                .prefetch_related("skills", "badges")
+                .first()
+            )
+
+        ctx["addresses"] = addresses
+        ctx["favorite_services"] = favorite_services
+        ctx["favorite_providers"] = favorite_providers
+        ctx["total_favorites_count"] = favorite_services.count() + favorite_providers.count()
+        ctx["client_bookings_count"] = Booking.objects.filter(client=user).count()
+        ctx["provider_bookings_count"] = (
+            Booking.objects.filter(provider=user).count() if user.is_provider else 0
+        )
+        ctx["active_bookings_count"] = all_bookings.filter(
+            status__in=active_statuses
+        ).count()
+        ctx["completed_bookings_count"] = all_bookings.filter(
+            status=Booking.Status.COMPLETED
+        ).count()
+        ctx["unread_notifications_count"] = Notification.objects.filter(
+            user=user, is_read=False
+        ).count()
+        ctx["profile"] = provider_profile
         return ctx
 
 

@@ -201,6 +201,7 @@ class NotificationPreference(models.Model):
     bids = models.BooleanField(default=True)
     urgent_ads = models.BooleanField(default=True)
     reviews = models.BooleanField(default=True)
+    in_app_sound = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         return f"Prefs for {self.user}"

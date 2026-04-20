@@ -4,7 +4,8 @@ from django.utils import timezone
 
 from accounts.models import Address, User
 from services.models import Service, ServiceCategory
-from .models import Booking, RescheduleRequest, BookingAttachment
+
+from .models import Booking, BookingAttachment, RescheduleRequest
 from .utils import validate_provider_slot
 
 
@@ -27,8 +28,8 @@ class BookingForm(forms.ModelForm):
     service_query = forms.CharField(
         required=False,
         max_length=150,
-        label="Serviciu (scrie sau alege)",
-        help_text="Exemplu: reparat robinet, schimbat priza, curatenie generala",
+        label="Tip de ajutor (scrie sau alege)",
+        help_text="Exemplu: ajutor la cumparaturi, insotire la medic, mutat obiecte usoare",
     )
     saved_address = forms.ModelChoiceField(
         queryset=Address.objects.none(),
@@ -63,7 +64,7 @@ class BookingForm(forms.ModelForm):
     provider = forms.ModelChoiceField(
         queryset=User.objects.none(),
         required=False,
-        label="Alege prestator (optional)",
+        label="Alege voluntar (optional)",
     )
 
     class Meta:
@@ -85,16 +86,19 @@ class BookingForm(forms.ModelForm):
         services_qs = Service.objects.filter(is_active=True).select_related("category")
         categories_qs = ServiceCategory.objects.filter(is_active=True).order_by("name")
         self.fields["category"].queryset = categories_qs
+        self.fields["category"].help_text = (
+            "Alege mai intai categoria, ca sa restrangem tipurile de ajutor."
+        )
         self.fields["service"].queryset = services_qs
         self.fields["service"].required = False
-        self.fields["service"].empty_label = "Alege serviciul din lista"
+        self.fields["service"].empty_label = "Alege tipul de ajutor din lista"
         self.fields["service"].help_text = (
-            "Daca stii exact ce iti trebuie, poti selecta direct serviciul."
+            "Daca stii exact ce iti trebuie, poti selecta direct din lista."
         )
         self.fields["service_query"].widget.attrs.update(
             {
                 "list": "service-suggestions",
-                "placeholder": "Scrie serviciul dorit",
+                "placeholder": "Scrie tipul de ajutor dorit",
                 "autocomplete": "off",
             }
         )
@@ -102,10 +106,45 @@ class BookingForm(forms.ModelForm):
         self.fields["description"].widget.attrs.update(
             {"rows": 4, "placeholder": "Ex: scurgere la chiuveta in bucatarie"}
         )
-        self.fields["scheduled_start"].label = "Cand doresti interventia?"
+        self.fields["scheduled_start"].label = "Cand ai nevoie de ajutor?"
+        self.fields["scheduled_start"].help_text = (
+            "Alege un interval realist, ca sa gasim mai usor un voluntar disponibil."
+        )
         self.fields["duration_minutes"].label = "Durata estimata (minute)"
+        self.fields["duration_minutes"].help_text = (
+            "Ne ajuta sa evitam suprapuneri si sa gasim voluntarul potrivit."
+        )
         self.fields["provider"].help_text = "Lasa gol daca vrei asignare automata."
         self.fields["saved_address"].empty_label = "Scriu o adresa noua"
+        self.fields["saved_address"].help_text = (
+            "Selecteaza o adresa salvata sau completeaza manual campurile de mai jos."
+        )
+        self.fields["address_city"].help_text = (
+            "Orasul este folosit pentru filtrarea voluntarilor disponibili."
+        )
+        self.fields["address_line"].help_text = (
+            "Include strada, numarul si orice reper important."
+        )
+        self.fields["address_details"].help_text = (
+            "Optional: bloc, etaj, apartament, interfon sau alte indicii utile."
+        )
+        self.fields["urgency_level"].label = "Nivel de urgenta"
+        self.fields["urgency_level"].help_text = (
+            "Foloseste urgent doar cand cererea chiar are nevoie de reactie rapida."
+        )
+        self.fields["is_urgent"].label = "Marcheaza ca urgent"
+        self.fields["is_urgent"].help_text = (
+            "Bifeaza doar daca este nevoie de ajutor intr-un interval scurt."
+        )
+        self.fields["guest_first_name"].help_text = (
+            "Il folosim pentru confirmari si pentru chatul asociat cererii."
+        )
+        self.fields["guest_email"].help_text = (
+            "Daca nu ai cont, il folosim pentru a crea automat accesul la cerere."
+        )
+        self.fields["guest_phone"].help_text = (
+            "Ajuta la coordonarea rapida daca cererea este acceptata."
+        )
 
         self.service_suggestions = list(
             services_qs.values("id", "name", "category_id", "category__name")
@@ -258,15 +297,20 @@ class RescheduleRequestForm(forms.Form):
     scheduled_start = forms.DateTimeField(
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
         label="Noua data si ora",
+        help_text="Alege un interval viitor care functioneaza pentru ambele parti.",
     )
     duration_minutes = forms.IntegerField(
-        min_value=15, initial=60, label="Durata estimata (minute)"
+        min_value=15,
+        initial=60,
+        label="Durata estimata (minute)",
+        help_text="Pastreaza durata realista ca sa evitam suprapuneri.",
     )
     note = forms.CharField(
         required=False,
         max_length=255,
         label="Nota pentru celalalt utilizator",
         widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Explica pe scurt de ce propui schimbarea sau ce trebuie retinut.",
     )
 
     def __init__(self, booking, user, *args, **kwargs):
@@ -307,6 +351,7 @@ class CancelBookingForm(forms.Form):
         max_length=255,
         label="Motiv (optional)",
         widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Ajuta-l pe celalalt utilizator sa inteleaga de ce se inchide cererea.",
     )
 
 
@@ -314,8 +359,9 @@ class CompleteBookingForm(forms.Form):
     note = forms.CharField(
         required=False,
         max_length=255,
-        label="Notă pentru client",
+        label="Nota pentru client",
         widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Rezuma ce ai facut sau ce ar trebui verificat inainte de confirmare.",
     )
 
 
@@ -325,6 +371,7 @@ class ResolveDisputeForm(forms.Form):
         max_length=255,
         label="Rezolvare (nota)",
         widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Noteaza clar ce s-a lamurit si de ce disputa poate fi inchisa.",
     )
 
 
@@ -333,7 +380,7 @@ class DisputeMessageForm(forms.Form):
         label="Mesaj",
         widget=forms.Textarea(attrs={"rows": 3}),
     )
-    attachment = forms.FileField(required=False, label="Atașament (optional)")
+    attachment = forms.FileField(required=False, label="Atasament (optional)")
 
 
 class BookingRepeatForm(forms.Form):
@@ -341,10 +388,13 @@ class BookingRepeatForm(forms.Form):
         required=False,
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
         label="Data & ora",
-        help_text="Dacă îl lași gol, rezervarea pornește acum.",
+        help_text="Daca il lasi gol, noua rezervare porneste din momentul curent.",
     )
     duration_minutes = forms.IntegerField(
-        required=False, min_value=15, label="Durată (minute)"
+        required=False,
+        min_value=15,
+        label="Durata (minute)",
+        help_text="Poti ajusta durata fara sa refaci toata cererea.",
     )
 
 
@@ -352,6 +402,14 @@ class BookingAttachmentForm(forms.ModelForm):
     class Meta:
         model = BookingAttachment
         fields = ["file", "note"]
+        labels = {
+            "file": "Fisier",
+            "note": "Nota (optional)",
+        }
+        help_texts = {
+            "file": "Incarca un document, o poza sau un alt fisier relevant pentru comanda.",
+            "note": "Adauga un context scurt ca sa se inteleaga ce contine fisierul.",
+        }
 
 
 class RecurringBookingForm(forms.Form):
@@ -361,7 +419,7 @@ class RecurringBookingForm(forms.Form):
         required=False,
         label="Prestator (optional)",
     )
-    address = forms.ModelChoiceField(queryset=Address.objects.none(), label="Adresă")
+    address = forms.ModelChoiceField(queryset=Address.objects.none(), label="Adresa")
     description = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
@@ -370,10 +428,44 @@ class RecurringBookingForm(forms.Form):
     start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     start_time = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time"}))
     duration_minutes = forms.IntegerField(min_value=15, initial=60)
-    frequency = forms.ChoiceField(choices=[("weekly", "Săptămânal"), ("biweekly", "Bilunar"), ("monthly", "Lunar")])
+    frequency = forms.ChoiceField(
+        choices=[
+            ("weekly", "Saptamanal"),
+            ("biweekly", "Bilunar"),
+            ("monthly", "Lunar"),
+        ]
+    )
     occurrences = forms.IntegerField(min_value=1, max_value=26, initial=4)
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["service"].queryset = Service.objects.filter(is_active=True)
         self.fields["address"].queryset = Address.objects.filter(user=user)
+        self.fields["service"].help_text = (
+            "Alege serviciul pe care vrei sa-l programezi repetat."
+        )
+        self.fields["provider"].help_text = "Lasa gol daca vrei asignare ulterioara."
+        self.fields["address"].help_text = (
+            "Folosim una dintre adresele deja salvate in cont."
+        )
+        self.fields["description"].help_text = (
+            "Optional: mentiuni care se aplica fiecarei aparitii."
+        )
+        self.fields["start_date"].label = "Data primei rezervari"
+        self.fields["start_date"].help_text = "De aici porneste intreaga serie."
+        self.fields["start_time"].label = "Ora de start"
+        self.fields["start_time"].help_text = (
+            "Toate aparitiile folosesc aceeasi ora."
+        )
+        self.fields["duration_minutes"].label = "Durata (minute)"
+        self.fields["duration_minutes"].help_text = (
+            "Stabileste o durata realista pentru fiecare aparitie."
+        )
+        self.fields["frequency"].label = "Frecventa"
+        self.fields["frequency"].help_text = (
+            "Alege cat de des se repeta rezervarea."
+        )
+        self.fields["occurrences"].label = "Numar de aparitii"
+        self.fields["occurrences"].help_text = (
+            "Poti crea pana la 26 de aparitii dintr-un foc."
+        )

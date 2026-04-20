@@ -25,6 +25,8 @@ import logging
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
+from config.observability import get_current_request_id
+
 from .models import ChatMessage, Conversation
 
 
@@ -89,7 +91,11 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
 
     async def chat_message(self, event):
         """Fired by broadcast_message() when a new ChatMessage is created."""
-        await self.send_json({"event": "message.new", "message": event["message"]})
+        payload = {"event": "message.new", "message": event["message"]}
+        request_id = event.get("request_id")
+        if request_id:
+            payload["request_id"] = request_id
+        await self.send_json(payload)
 
     async def chat_typing(self, event):
         user = self.scope.get("user")
@@ -129,7 +135,7 @@ class ConversationConsumer(AsyncJsonWebsocketConsumer):
         ).exclude(sender_id=user_id).update(is_read=True)
 
 
-def broadcast_message(conversation_id: int, message_payload: dict) -> None:
+def broadcast_message(conversation_id: int, message_payload: dict, request_id: str = "") -> None:
     """
     Push a serialized message to everyone connected to a conversation.
     Called from the DRF viewset after a successful create. Safe to call from
@@ -145,10 +151,12 @@ def broadcast_message(conversation_id: int, message_payload: dict) -> None:
     if layer is None:
         return
 
+    resolved_request_id = request_id or get_current_request_id(default="")
+
     try:
-        async_to_sync(layer.group_send)(
-            group_name_for(conversation_id),
-            {"type": "chat.message", "message": message_payload},
-        )
+        event = {"type": "chat.message", "message": message_payload}
+        if resolved_request_id:
+            event["request_id"] = resolved_request_id
+        async_to_sync(layer.group_send)(group_name_for(conversation_id), event)
     except Exception:
         logger.exception("Failed to broadcast chat message for convo %s", conversation_id)
