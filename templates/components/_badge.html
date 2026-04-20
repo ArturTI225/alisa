@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Badge / status chip partial.
 
   Required:
@@ -10,7 +10,7 @@
 
   Example:
     {% include "components/_badge.html" with label="Urgent" variant="urgent" %}
-#}
+{% endcomment %}
 <span class="badge{% if variant %} badge-{{ variant }}{% endif %}">
   {% if icon %}<span class="badge-icon" aria-hidden="true">{{ icon }}</span>{% endif %}{{ label }}
 </span>

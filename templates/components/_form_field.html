@@ -1,4 +1,4 @@
-{#
+{% comment %}
   Reusable form-field partial.
 
   Required:
@@ -12,7 +12,7 @@
 
   Example:
     {% include "components/_form_field.html" with field=form.email autofocus=True %}
-#}
+{% endcomment %}
 <div class="ff {% if field.errors %}ff--error{% endif %}">
   <label for="{{ field.id_for_label }}"
          class="ff__label{% if hide_label %} ff__label--sr{% endif %}">
@@ -32,7 +32,7 @@
 
   {% with resolved_help=help|default:field.help_text %}
     {% if resolved_help %}
-      <p class="ff__help">{{ resolved_help }}</p>
+      <div class="ff__help">{{ resolved_help }}</div>
     {% endif %}
   {% endwith %}
 </div>

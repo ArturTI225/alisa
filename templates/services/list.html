@@ -5,7 +5,7 @@
     <div>
         <div class="badge">Catalog servicii</div>
         <h1>Alege rapid serviciul potrivit</h1>
-        <p class="muted">Filtrezi după categorie și oraș, iar rezervarea rămâne la un click distanță.</p>
+        <p class="muted">Filtrezi după categorie și oraș, iar cererea rămâne la un click distanță.</p>
         <div class="pill-row">
             <span class="chip chip-ghost">Instalații</span>
             <span class="chip chip-ghost">Electrică</span>
@@ -39,13 +39,13 @@
                 <h3>{{ service.name }}</h3>
                 <p>{{ service.description|truncatewords:22 }}</p>
                 <div class="service-meta">
-                    <span class="chip status-confirmed">Proiect social (fără cost afișat)</span>
+                    <span class="chip status-confirmed">Gratuit pentru comunitate</span>
                 </div>
                 <div class="pill-row">
                     <span class="chip chip-ghost">Durată: {{ service.duration_estimate_minutes }} min</span>
                 </div>
                 <div class="actions-row">
-                    <a class="btn-primary slim" href="/bookings/new/">Rezervă</a>
+                    <a class="btn-primary slim" href="/bookings/new/">Cere ajutor</a>
                     {% if user.is_authenticated %}
                     <form method="post" action="{% url 'accounts:favorite_toggle' 'service' service.id %}">
                         {% csrf_token %}

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="ro" data-accent="civic-blue" data-density="airy" data-mode="light">
 <head>
     {% load static %}
     <meta charset="UTF-8">
@@ -7,82 +7,280 @@
     <title>{% block title %}La u&#351;a ta{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/form.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/empty-state.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/chat.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/toast.css' %}">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/design-v1.css' %}">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
     <script src="{% static 'js/app.js' %}" defer></script>
 </head>
-<body>
-    <div class="page-transition"></div>
-    <div class="loader-overlay" id="page-loader">
+<body data-notification-sound-enabled="{{ ui_notification_sound_enabled|yesno:'true,false' }}">
+    <a class="skip-link" href="#main-content">Sari direct la continut</a>
+    <div class="page-transition" aria-hidden="true"></div>
+    <div class="loader-overlay" id="page-loader" aria-hidden="true">
         <div id="loader-lottie"></div>
     </div>
-    <header class="top-nav">
-        <div class="brand">
-            <a href="/" class="logo" aria-label="La usa ta">
-                <img src="{% static 'images/logo.png' %}" alt="La usa ta logo">
-            </a>
-        </div>
-        <nav class="nav-main">
-            <a href="/" class="{% if request.path == '/' %}active{% endif %}">Acas&#259;</a>
-            <a href="/services/" class="{% if '/services/' in request.path %}active{% endif %}">Categorii de ajutor</a>
-            <a href="/cum-functioneaza/" class="{% if request.path == '/cum-functioneaza/' %}active{% endif %}">Cum func&#539;ioneaz&#259;</a>
-            <a href="{% url 'pages:apply' %}" class="{% if request.path == '/devino-membru/' or request.path == '/devino-sot-la-ora/' %}active{% endif %}">Devino membru</a>
-            <a href="/bookings/new/" class="cta{% if '/bookings/' in request.path %} active{% endif %}">Cere ajutor</a>
-        </nav>
-        <div class="nav-actions">
-            {% if user.is_authenticated %}
-                <details class="nav-user">
-                    <summary>
-                        <span class="avatar nav-avatar">{{ user.display_name|first|upper }}</span>
-                        <span class="nav-user__name">{{ user.display_name }}</span>
-                    </summary>
-                    <div class="nav-user__panel">
-                        <a href="/bookings/">Ajutorul meu</a>
-                        <a href="/chat/">Chat</a>
-                        {% if user.is_provider %}<a href="/bookings/provider/dashboard/">Panou voluntar</a>{% endif %}
-                        <a href="/accounts/favorites/">Favorite</a>
-                        <a href="/accounts/notifications/">Notific&#259;ri</a>
-                        {% if user.is_staff %}<a href="/bookings/disputes/">Dispute</a>{% endif %}
-                        <a href="/accounts/profile/">Profil</a>
-                        <form method="post" action="{% url 'accounts:logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="nav-user__logout">Ie&#537;ire</button>
-                        </form>
-                    </div>
-                </details>
-            {% else %}
-                <a class="btn-ghost" href="/accounts/login/">Autentificare</a>
-                <a class="btn-primary" href="/accounts/signup/">Creeaz&#259; cont</a>
-            {% endif %}
-        </div>
-    </header>
-    <main class="page">
+    <div class="app-shell {% if not user.is_authenticated %}app-shell--guest{% endif %}">
+        {% if user.is_authenticated %}
+        <aside class="shell-sidebar" id="shell-sidebar" aria-label="Navigare laterală">
+            <div class="shell-brand">
+                <a href="/" class="logo" aria-label="La ușa ta">
+                    <img src="{% static 'images/logo.png' %}" alt="La ușa ta logo">
+                </a>
+            </div>
+
+            <nav class="shell-nav">
+                <div class="shell-nav__section">
+                    <p class="shell-nav__label">Principal</p>
+                    <a href="/" class="shell-nav__item {% if request.path == '/' %}active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>Acasă</a>
+                    <a href="{% url 'bookings:create' %}" class="shell-nav__item {% if request.path == '/bookings/new/' %}active{% endif %}" {% if request.path == '/bookings/new/' %}aria-current="page"{% endif %}>Cere ajutor</a>
+                </div>
+
+                <div class="shell-nav__section">
+                    <p class="shell-nav__label">Activitate</p>
+                    <a href="{% url 'bookings:list' %}" class="shell-nav__item {% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}active{% endif %}" {% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}aria-current="page"{% endif %}>Cererile mele</a>
+                    {% if user.is_provider %}<a href="{% url 'bookings:provider_dashboard' %}" class="shell-nav__item {% if '/bookings/provider/dashboard/' in request.path %}active{% endif %}" {% if '/bookings/provider/dashboard/' in request.path %}aria-current="page"{% endif %}>Panou voluntar</a>{% endif %}
+                    <a href="{% url 'pages:applications' %}" class="shell-nav__item {% if '/applications/' in request.path %}active{% endif %}" {% if '/applications/' in request.path %}aria-current="page"{% endif %}>Aplicații</a>
+                    <a href="{% url 'pages:reviews' %}" class="shell-nav__item {% if '/reviews/' in request.path %}active{% endif %}" {% if '/reviews/' in request.path %}aria-current="page"{% endif %}>Recenzii</a>
+                    <a href="{% url 'chat:conversation_list' %}" class="shell-nav__item {% if '/chat/' in request.path %}active{% endif %}" {% if '/chat/' in request.path %}aria-current="page"{% endif %}>Mesaje</a>
+                </div>
+
+                <div class="shell-nav__section">
+                    <p class="shell-nav__label">Cont</p>
+                    <a href="{% url 'accounts:profile' %}" class="shell-nav__item {% if '/accounts/profile/' in request.path %}active{% endif %}" {% if '/accounts/profile/' in request.path %}aria-current="page"{% endif %}>Profil</a>
+                    <a href="{% url 'accounts:favorites' %}" class="shell-nav__item {% if '/accounts/favorites/' in request.path %}active{% endif %}" {% if '/accounts/favorites/' in request.path %}aria-current="page"{% endif %}>Favorite</a>
+                    <a href="{% url 'accounts:notification_preferences' %}" class="shell-nav__item {% if '/accounts/notification-preferences/' in request.path %}active{% endif %}" {% if '/accounts/notification-preferences/' in request.path %}aria-current="page"{% endif %}>Preferințe</a>
+                </div>
+            </nav>
+
+            <div class="shell-sidebar__footer">
+                <span class="avatar nav-avatar">{{ user.display_name|first|upper }}</span>
+                <div>
+                    <strong>{{ user.display_name }}</strong>
+                    <p class="muted">{{ user.get_role_display }}</p>
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-ghost slim">Ieșire</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+        {% endif %}
+
+        <div class="shell-main">
+            <header class="shell-topbar" role="banner">
+                {% if user.is_authenticated %}
+                <button class="btn-ghost shell-menu-btn" type="button" data-open-sidebar aria-controls="shell-sidebar" aria-label="Deschide meniul">☰</button>
+                {% endif %}
+
+                <div class="shell-crumbs" aria-label="Navigare context">
+                    {% if breadcrumbs %}
+                        {% for item in breadcrumbs %}
+                            {% if not forloop.first %}<span class="shell-crumbs__sep">/</span>{% endif %}
+                            {% if item.url %}<a href="{{ item.url }}">{{ item.label }}</a>{% else %}<span class="is-current">{{ item.label }}</span>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <a href="/">Acasă</a>
+                    {% endif %}
+                </div>
+
+                {% if user.is_authenticated %}
+                <a class="help-btn" href="{% url 'bookings:create' %}">Ajutor acum</a>
+                {% endif %}
+
+                <div class="nav-actions">
+                    {% if user.is_authenticated %}
+                        <a class="top-notif-btn {% if '/accounts/notifications/' in request.path %}active{% endif %}"
+                           href="{% url 'accounts:notifications' %}"
+                           aria-label="Notificări">
+                            <span aria-hidden="true">🔔</span>
+                            <span class="top-notif-btn__label">Notificări</span>
+                            {% if unread_notifications_count %}
+                                <span class="top-notif-btn__count">{{ unread_notifications_count }}</span>
+                            {% endif %}
+                        </a>
+                    {% endif %}
+                    <button class="sr-only"
+                            type="button"
+                            data-open-command-palette
+                            aria-haspopup="dialog"
+                            aria-controls="command-palette">
+                        Deschide comenzile rapide
+                    </button>
+                    {% if not user.is_authenticated %}
+                        <a class="btn-ghost" href="/accounts/login/">Autentificare</a>
+                        <a class="btn-primary" href="/accounts/signup/">Creează cont</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <main class="page shell-view" id="main-content" tabindex="-1">
+        {% include "components/_breadcrumbs.html" with items=breadcrumbs %}
         {% if messages %}
-            <div class="flash-container">
+            <div class="flash-container" aria-live="polite" aria-label="Mesaje de sistem">
                 {% for message in messages %}
                     <div class="alert {{ message.tags }}">
                         {{ message }}
-                        <button class="alert-close" type="button" aria-label="Close">&times;</button>
+                        <button class="alert-close" type="button" aria-label="Închide">&times;</button>
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
         {% block content %}{% endblock %}
-    </main>
-    <div class="live-toasts" id="live-toasts" aria-live="polite" aria-atomic="false"></div>
-    <footer class="site-footer">
-        <div>(c) {% now "Y" %} La u&#351;a ta - ajutor rapid pentru casa ta.</div>
-    </footer>
+            </main>
 
+            {% if user.is_authenticated %}
+            <nav class="shell-mobile-tabbar" aria-label="Navigare rapidă">
+                <a href="/" class="{% if request.path == '/' %}active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>Acasă</a>
+                <a href="{% url 'bookings:list' %}" class="{% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}active{% endif %}" {% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}aria-current="page"{% endif %}>Ajutor</a>
+                <a href="{% url 'bookings:create' %}" class="{% if request.path == '/bookings/new/' %}active{% endif %}" {% if request.path == '/bookings/new/' %}aria-current="page"{% endif %}>{% if user.is_provider %}Oferă{% else %}Cere{% endif %}</a>
+                <a href="{% url 'chat:conversation_list' %}" class="{% if '/chat/' in request.path %}active{% endif %}" {% if '/chat/' in request.path %}aria-current="page"{% endif %}>Mesaje</a>
+                <a href="{% url 'accounts:profile' %}" class="{% if '/accounts/profile/' in request.path %}active{% endif %}" {% if '/accounts/profile/' in request.path %}aria-current="page"{% endif %}>Profil</a>
+            </nav>
+            {% endif %}
+
+            <div class="live-toasts" id="live-toasts" aria-live="polite" aria-atomic="false"></div>
+            <footer class="site-footer">
+                <div>(c) {% now "Y" %} La ușa ta - ajutor rapid pentru casa ta.</div>
+            </footer>
+        </div>
+    </div>
+    <div class="modal command-palette"
+         id="command-palette"
+         aria-hidden="true"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="command-palette-title">
+        <div class="modal-content command-palette__content" role="document">
+            <button class="modal-close"
+                    type="button"
+                    data-close-modal
+                    aria-label="Închide paleta de comenzi">&times;</button>
+            <div class="command-palette__header">
+                <p class="muted">Navigare rapidă</p>
+                <h2 id="command-palette-title">Comenzi rapide</h2>
+                <p class="muted">Scrie pentru a filtra. Enter deschide primul rezultat, Esc închide.</p>
+            </div>
+            <label class="sr-only" for="command-palette-input">Caută o comandă</label>
+            <input id="command-palette-input"
+                   class="command-palette__input"
+                   type="search"
+                   placeholder="Caută: chat, profil, cereri..."
+                   autocomplete="off"
+                   spellcheck="false"
+                   data-command-input>
+            <div class="command-palette__meta">
+                <span class="chip chip-ghost">Ctrl K</span>
+                <span class="muted">Disponibil de pe orice pagina.</span>
+            </div>
+            <div class="command-palette__list" data-command-list>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'bookings:list' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="cereri bookings ajutorul meu list">
+                        <strong>Ajutorul meu</strong>
+                        <span>Vezi toate cererile si statusurile recente.</span>
+                    </a>
+                    <a href="{% url 'bookings:create' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="cerere ajutor cerere noua bookings create">
+                        <strong>Cere ajutor</strong>
+                        <span>Deschide formularul pentru o cerere nouă.</span>
+                    </a>
+                    <a href="{% url 'chat:conversation_list' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="chat conversatii mesaje inbox">
+                        <strong>Chat</strong>
+                        <span>Intra direct in conversatiile active.</span>
+                    </a>
+                          <a href="{% url 'pages:applications' %}"
+                              class="command-palette__item"
+                              data-command-item
+                              data-command-label="aplicatii voluntari cereri primite">
+                                  <strong>Aplicații</strong>
+                                <span>Vezi cine a aplicat la cererile tale.</span>
+                          </a>
+                          <a href="{% url 'pages:reviews' %}"
+                              class="command-palette__item"
+                              data-command-item
+                              data-command-label="recenzii rating feedback reputatie">
+                                <strong>Recenzii</strong>
+                                <span>Verifica reputatia ta si lasa feedback.</span>
+                          </a>
+                    <a href="{% url 'accounts:notifications' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="notificari inbox noutati">
+                        <strong>Notificări</strong>
+                        <span>Verifica mesajele noi si actiunile importante.</span>
+                    </a>
+                    <a href="{% url 'accounts:profile' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="profil cont setari account">
+                        <strong>Profil</strong>
+                        <span>Deschide datele contului si favoritele.</span>
+                    </a>
+                    {% if user.is_provider %}
+                        <a href="{% url 'bookings:provider_dashboard' %}"
+                           class="command-palette__item"
+                           data-command-item
+                           data-command-label="panou voluntar provider dashboard">
+                            <strong>Panou voluntar</strong>
+                            <span>Vezi activitatea ta ca voluntar sau voluntar.</span>
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <a href="/"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="acasa home inceput">
+                        <strong>Acasă</strong>
+                        <span>Întoarce-te la pagina principală.</span>
+                    </a>
+                    <a href="{% url 'services:list' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="servicii categorii ajutor">
+                        <strong>Categorii de ajutor</strong>
+                        <span>Explorează domeniile disponibile.</span>
+                    </a>
+                    <a href="{% url 'pages:how_it_works' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="cum functioneaza ghid">
+                        <strong>Cum funcționează</strong>
+                        <span>Vezi pe scurt pașii platformei.</span>
+                    </a>
+                    <a href="{% url 'accounts:login' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="autentificare login cont">
+                        <strong>Autentificare</strong>
+                        <span>Intra in contul tau.</span>
+                    </a>
+                    <a href="{% url 'accounts:signup' %}"
+                       class="command-palette__item"
+                       data-command-item
+                       data-command-label="creeaza cont signup inregistrare">
+                        <strong>Creează cont</strong>
+                        <span>Pregătește un cont nou pentru demo.</span>
+                    </a>
+                {% endif %}
+            </div>
+            <p class="command-palette__empty muted" data-command-empty hidden>Nicio potrivire. Încearcă alt cuvânt-cheie.</p>
+        </div>
+    </div>
     {% if user.is_authenticated %}
     <script src="{% static 'js/ws.js' %}"></script>
     <script>

@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Autentificare{% endblock %}
 {% block content %}
-<div class="section card">
-    <h1>Autentificare</h1>
-    <form method="post">
+<div class="section card auth-card">
+    <h1>Intra in cont</h1>
+    <p class="muted">Continua cu datele tale ca sa vezi cererile, chatul si notificarile live.</p>
+    <form method="post" class="auth-form">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button class="btn-primary" type="submit">Intră în cont</button>
+        {% if form.non_field_errors %}
+            <div class="alert error">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% for field in form %}
+            {% include "components/_form_field.html" with field=field %}
+        {% endfor %}
+
+        <button class="btn-primary" type="submit">Intra in cont</button>
     </form>
-    <p>Nu ai cont? <a href="/accounts/signup/">Creează-l aici</a></p>
+    <p class="muted">Nu ai cont? <a href="{% url 'accounts:signup' %}">Creeaza-l aici</a>.</p>
 </div>
 {% endblock %}

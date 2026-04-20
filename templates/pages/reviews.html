@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Recenzii{% endblock %}
+{% block content %}
+<section class="section civic-screen reviews-screen">
+    <header class="civic-view-header">
+        <div>
+            <p class="civic-eyebrow">Reputatie si recenzii</p>
+            <h1>Recenzii</h1>
+            <p class="muted">Reputatia construieste increderea in comunitate. Fii specific si cinstit in feedback.</p>
+        </div>
+    </header>
+
+    <div class="reviews-summary-grid">
+        <article class="card reviews-summary-card reviews-summary-score">
+            <p class="muted">Scorul tau general</p>
+            <div class="reviews-score">{{ rating_avg|floatformat:1 }}</div>
+            <p class="muted">Din {{ rating_total }} recenzii primite</p>
+        </article>
+
+        <article class="card reviews-summary-card">
+            <p class="muted">Distribuire note</p>
+            <div class="reviews-bars">
+                {% for row in rating_distribution %}
+                    <div class="reviews-bar-row">
+                        <span>{{ row.score }}★</span>
+                        <div class="reviews-bar"><div style="width: {{ row.percent }}%"></div></div>
+                        <span class="muted">{{ row.count }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="card reviews-summary-card">
+            <p class="muted">Calitati apreciate</p>
+            {% if top_qualities %}
+                <div class="reviews-qualities">
+                    {% for quality, count in top_qualities %}
+                        <div class="summary-row">
+                            <span>{{ quality }}</span>
+                            <span class="muted">×{{ count }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted">Nu exista suficiente date inca.</p>
+            {% endif %}
+        </article>
+    </div>
+
+    <div class="reviews-layout">
+        <div class="reviews-main">
+            <div class="reviews-tabs">
+                <a href="{% url 'pages:reviews' %}?tab=received" class="{% if reviews_active_tab == 'received' %}active{% endif %}">Primite ({{ reviews_received|length }})</a>
+                <a href="{% url 'pages:reviews' %}?tab=given" class="{% if reviews_active_tab == 'given' %}active{% endif %}">Lasate ({{ reviews_given|length }})</a>
+            </div>
+
+            <article class="card reviews-panel reviews-panel-list">
+                <div class="section-header reviews-panel__header">
+                    <div>
+                        <h2>{% if reviews_active_tab == 'received' %}Recenzii primite{% else %}Recenzii lasate de tine{% endif %}</h2>
+                    </div>
+                </div>
+
+                {% if reviews_active_tab == 'received' %}
+                    {% if reviews_received %}
+                        <div class="reviews-list">
+                            {% for review in reviews_received %}
+                                <article class="reviews-item">
+                                    <div class="reviews-item__head">
+                                        <div class="reviews-item__author">
+                                            <div class="avatar reviews-item__avatar">{{ review.from_user.display_name|first|upper }}</div>
+                                            <div>
+                                                <strong>{{ review.from_user.display_name }}</strong>
+                                                <p class="muted">{{ review.id }} · {{ review.created_at|date:"d M Y" }}</p>
+                                            </div>
+                                        </div>
+                                        <span class="chip chip-ghost">{{ review.rating }}/5</span>
+                                    </div>
+                                    {% if review.quick_tags %}
+                                        <div class="pill-row">
+                                            {% for tag in review.quick_tags %}
+                                                <span class="chip chip-ghost">{{ tag }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <p class="reviews-item__quote">"{{ review.comment|default:"Review fara comentariu" }}"</p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {% include "components/_empty_state.html" with title="Nu ai recenzii primite" body="Dupa prima cerere finalizata, feedback-ul va aparea aici." %}
+                    {% endif %}
+                {% else %}
+                    {% if reviews_given %}
+                        <div class="reviews-list">
+                            {% for review in reviews_given %}
+                                <article class="reviews-item">
+                                    <div class="reviews-item__head">
+                                        <div class="reviews-item__author">
+                                            <div class="avatar reviews-item__avatar">{{ review.to_user.display_name|first|upper }}</div>
+                                            <div>
+                                                <strong>Pentru {{ review.to_user.display_name }}</strong>
+                                                <p class="muted">{{ review.id }} · {{ review.created_at|date:"d M Y" }}</p>
+                                            </div>
+                                        </div>
+                                        <span class="chip chip-ghost">{{ review.rating }}/5</span>
+                                    </div>
+                                    {% if review.quick_tags %}
+                                        <div class="pill-row">
+                                            {% for tag in review.quick_tags %}
+                                                <span class="chip chip-ghost">{{ tag }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <p class="reviews-item__quote">"{{ review.comment|default:"Review fara comentariu" }}"</p>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {% include "components/_empty_state.html" with title="Nu ai lasat recenzii" body="Poti lasa feedback pentru cererile finalizate in formularul din dreapta." %}
+                    {% endif %}
+                {% endif %}
+            </article>
+        </div>
+
+        <aside class="card reviews-compose">
+            <h2>Lasa o recenzie</h2>
+            <p class="muted">Recenzia ta este publicata imediat dupa trimitere.</p>
+            <form method="post" action="{% url 'pages:reviews' %}" id="review-compose-form">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="alert error">
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="field">
+                    <label for="id_booking">Cerere finalizata</label>
+                    {{ form.booking }}
+                </div>
+
+                <div class="field reviews-rating-field">
+                    <label>Nota</label>
+                    <div class="reviews-stars" data-stars>
+                        <button type="button" data-star-value="1">★</button>
+                        <button type="button" data-star-value="2">★</button>
+                        <button type="button" data-star-value="3">★</button>
+                        <button type="button" data-star-value="4">★</button>
+                        <button type="button" data-star-value="5">★</button>
+                    </div>
+                    {{ form.rating }}
+                </div>
+
+                <div class="field reviews-tags-field">
+                    <label>Etichete rapide</label>
+                    <div class="pill-row">
+                        <span class="chip chip-ghost">punctualitate</span>
+                        <span class="chip chip-ghost">comunicare clara</span>
+                        <span class="chip chip-ghost">rabdare</span>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="id_comment">Comentariu</label>
+                    {{ form.comment }}
+                </div>
+
+                <button class="btn-primary" type="submit">Publica recenzia</button>
+            </form>
+        </aside>
+    </div>
+</section>
+
+<script>
+(function () {
+    const form = document.getElementById('review-compose-form');
+    if (!form) return;
+    const starsWrap = form.querySelector('[data-stars]');
+    const ratingInput = document.getElementById('id_rating');
+    if (!starsWrap || !ratingInput) return;
+
+    ratingInput.type = 'hidden';
+
+    const buttons = Array.from(starsWrap.querySelectorAll('[data-star-value]'));
+
+    const paint = function (value) {
+        buttons.forEach(function (btn) {
+            const starVal = Number(btn.getAttribute('data-star-value'));
+            btn.classList.toggle('active', starVal <= value);
+        });
+    };
+
+    buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const value = Number(btn.getAttribute('data-star-value'));
+            ratingInput.value = value;
+            paint(value);
+        });
+    });
+
+    const startVal = Number(ratingInput.value || 5);
+    ratingInput.value = startVal;
+    paint(startVal);
+})();
+</script>
+{% endblock %}

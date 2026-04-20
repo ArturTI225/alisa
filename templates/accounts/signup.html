@@ -23,9 +23,9 @@
                         <span class="role-option__content">
                             <strong>{{ radio.choice_label }}</strong>
                             {% if forloop.first %}
-                                <span class="muted text-sm">Pentru rezervari si cereri de ajutor.</span>
+                                <span class="muted text-sm">Pentru cereri si cereri de ajutor.</span>
                             {% else %}
-                                <span class="muted text-sm">Pentru a primi comenzi si a lucra ca prestator.</span>
+                                <span class="muted text-sm">Pentru a primi cereri si a ajuta comunitatea ca voluntar.</span>
                             {% endif %}
                         </span>
                     </label>
@@ -38,20 +38,12 @@
 
         {% for field in form %}
             {% if field.name != "role" %}
-                <div class="field">
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <div class="help-text">{{ field.help_text }}</div>
-                    {% endif %}
-                    {% for error in field.errors %}
-                        <div class="field-error">{{ error }}</div>
-                    {% endfor %}
-                </div>
+                {% include "components/_form_field.html" with field=field %}
             {% endif %}
         {% endfor %}
 
         <button class="btn-primary" type="submit">Inregistreaza-te</button>
     </form>
+    <p class="muted">Ai deja cont? <a href="{% url 'accounts:login' %}">Autentifica-te</a>.</p>
 </div>
 {% endblock %}

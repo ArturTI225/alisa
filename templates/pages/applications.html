@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Aplicații{% endblock %}
+{% block content %}
+<section class="section civic-screen applications-screen">
+    {% if is_client_view %}
+        <header class="civic-view-header">
+            <div>
+                <p class="civic-eyebrow">
+                    {% if selected_application %}
+                        Cererea ta · CR-{{ selected_application.help_request.id }} · deschisă {{ selected_application.help_request.created_at|date:"l" }}
+                    {% else %}
+                        Cererea ta · aplicații primite
+                    {% endif %}
+                </p>
+                <h1>{{ applications_count }} voluntari vor să te ajute</h1>
+                <p class="muted applications-screen__intro">Poți să te uiți pe rând, fără grabă. Când găsești pe cineva potrivit, apeși <strong>Da, vreau să mă ajute</strong>.</p>
+            </div>
+        </header>
+
+        <div class="applications-layout">
+            <div>
+                <p class="applications-list__label">Voluntarii care au răspuns ({{ applications|length }})</p>
+                {% if applications %}
+                    <div class="applications-list__body">
+                        {% for app in applications %}
+                            <a class="applications-item {% if selected_application and selected_application.id == app.id %}active{% endif %}"
+                               href="{% url 'pages:applications' %}?a={{ app.id }}"
+                               {% if selected_application and selected_application.id == app.id %}aria-current="page"{% endif %}>
+                                <div class="avatar applications-item__avatar">{{ app.volunteer.display_name|first|upper }}</div>
+                                <div>
+                                    <div class="applications-item__name-row">
+                                        <div class="applications-item__name">{{ app.volunteer.display_name }}</div>
+                                    </div>
+                                    <p class="muted applications-item__meta">⭐ {{ app.volunteer.rating_avg|default:"0" }} · {{ app.volunteer.rating_count }} recenzii · {{ app.help_request.city|default:"din zona ta" }}</p>
+                                    <div class="pill-row">
+                                        <span class="chip chip-ghost">{{ app.help_request.title|truncatechars:42 }}</span>
+                                        {% if app.is_new %}<span class="chip">nou</span>{% endif %}
+                                    </div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    {% include "components/_empty_state.html" with title="Încă nu ai aplicații" body="După publicare, voluntarii apar aici." cta_label="Publică cerere" cta_href="/" %}
+                {% endif %}
+            </div>
+
+            <aside class="card applications-panel">
+                {% if selected_application %}
+                    <div class="applications-panel__head">
+                        <div class="avatar applications-panel__avatar">{{ selected_application.volunteer.display_name|first|upper }}</div>
+                        <div>
+                            <h2>{{ selected_application.volunteer.display_name }}</h2>
+                            <p class="muted applications-panel__lead">⭐ {{ selected_application.volunteer.rating_avg|default:"0" }} din 5 stele, pe baza a <strong>{{ selected_application.volunteer.rating_count }}</strong> recenzii. Cerere în <strong>{{ selected_application.help_request.city|default:"zona ta" }}</strong>.</p>
+                            <div class="pill-row">
+                                <span class="chip chip-ghost">✓ Profil verificat</span>
+                                <span class="chip chip-ghost">{{ selected_application.help_request.category.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="applications-quote">
+                        <p class="civic-eyebrow">Ce spune {{ selected_application.volunteer.display_name|truncatechars:14 }}</p>
+                        <p class="serif">"{{ selected_application.message|default:'Vreau să te ajut cu această cerere. Putem discuta toate detaliile înainte de confirmare.' }}"</p>
+                    </div>
+
+                    <div class="applications-verify">
+                        <h3>Este verificat cu act de identitate</h3>
+                        <p>Contul este verificat în platformă. Poți confirma în siguranță și poți discuta detalii în chat înainte de acceptare.</p>
+                    </div>
+
+                    <dl class="applications-meta">
+                        <div class="summary-row">
+                            <span class="label">Cerere</span>
+                            <span>#{{ selected_application.help_request.id }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Status aplicație</span>
+                            <span>{{ selected_application.get_status_display }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Urgență</span>
+                            <span>{{ selected_application.help_request.get_urgency_display }}</span>
+                        </div>
+                    </dl>
+
+                    <div class="actions-row applications-panel__actions">
+                        {% if selected_application.status == 'pending' %}
+                            <form method="post" action="{% url 'pages:application_accept' selected_application.id %}">
+                                {% csrf_token %}
+                                <button class="btn-primary" type="submit">✓ Da, vreau să mă ajute</button>
+                            </form>
+                        {% endif %}
+                        {% if selected_application.chat_conversation_id %}
+                            <a class="btn-secondary" href="{% url 'chat:conversation_detail' selected_application.chat_conversation_id %}">Vreau să-i scriu întâi</a>
+                        {% endif %}
+                        <a class="btn-ghost" href="{% url 'bookings:list' %}">Mă uit mai târziu</a>
+                    </div>
+
+                    <p class="applications-panel__note"><strong>Nu te grăbi.</strong> Nimeni nu vine la tine fără confirmarea ta.</p>
+                {% else %}
+                    {% include "components/_empty_state.html" with title="Alege o aplicație" body="Selectează din lista din stânga pentru detalii." %}
+                {% endif %}
+            </aside>
+        </div>
+    {% else %}
+        <header class="civic-view-header">
+            <div>
+                <p class="civic-eyebrow">Aplicații trimise</p>
+                <h1>Aplicațiile tale</h1>
+                <p class="muted">Aici vezi unde ai aplicat și ce status are fiecare cerere.</p>
+            </div>
+        </header>
+
+        <div class="booking-grid" data-skeleton data-skeleton-duration="520">
+            {% for app in applications_sent %}
+                <article class="booking-card">
+                    <div class="booking-card__top">
+                        <strong>#{{ app.help_request.id }} · {{ app.help_request.title|truncatechars:50 }}</strong>
+                        <span class="chip chip-ghost">{{ app.get_status_display }}</span>
+                    </div>
+                    <p class="muted">Solicitant: {{ app.help_request.created_by.display_name }}</p>
+                    <div class="summary-row">
+                        <span class="label">Categorie</span>
+                        <span>{{ app.help_request.category.name }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Trimisă la</span>
+                        <span>{{ app.created_at|date:"d M Y H:i" }}</span>
+                    </div>
+                    <p>{{ app.message|default:"Fără mesaj" }}</p>
+                </article>
+            {% empty %}
+                {% include "components/_empty_state.html" with title="Nu ai aplicații trimise" body="Când aplici la o cerere, statusul apare aici." cta_label="Înapoi acasă" cta_href="/" %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

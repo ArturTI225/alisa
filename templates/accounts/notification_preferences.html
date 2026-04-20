@@ -2,14 +2,30 @@
 {% block title %}Preferințe notificări{% endblock %}
 {% block content %}
 <div class="section card glass">
-    <h1>Preferințe notificări</h1>
-    <p class="muted">Controlează ce notificări primești în aplicație.</p>
-    <form method="post">
+    <div class="section-header">
+        <div>
+            <p class="muted">Control notificări</p>
+            <h1>Preferințe notificări</h1>
+            <p class="muted">Alegi ce vrei să primești în aplicație și dacă vrei sunet pentru notificările live.</p>
+        </div>
+    </div>
+    <form method="post" class="form-layout">
         {% csrf_token %}
-        {{ form.as_p }}
-        <div class="actions-row">
-            <button class="btn-primary" type="submit">Salvează</button>
-            <a class="btn-secondary" href="/accounts/notifications/">Înapoi</a>
+        <aside class="form-side">
+            <div class="summary-box">
+                <h3>Ce schimbi aici</h3>
+                <p class="muted">Notificările de chat, cereri și review-uri pot rămâne active, iar sunetul browserului poate fi pornit separat.</p>
+                <p class="muted">Sunetul este oprit implicit, ca să nu întrerupă demo-ul sau lucrul obișnuit.</p>
+            </div>
+        </aside>
+        <div class="form-main">
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
+            <div class="actions-row">
+                <button class="btn-primary" type="submit">Salvează preferințele</button>
+                <a class="btn-secondary" href="{% url 'accounts:notifications' %}">Înapoi la notificări</a>
+            </div>
         </div>
     </form>
 </div>

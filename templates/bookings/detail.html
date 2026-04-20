@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Comanda #{{ booking.id }}{% endblock %}
+{% block title %}Cerere #{{ booking.id }}{% endblock %}
 {% block content %}
 <div class="section card booking-hero">
     <div class="booking-hero__top">
         <div>
-            <p class="muted">Comanda</p>
+            <p class="muted">Cerere</p>
             <h1>#{{ booking.id }} · {{ booking.service }}</h1>
             <div class="chips">
                 <span class="chip status-{{ booking.status }}">Status: {{ booking.get_status_display }}</span>
-                <span class="chip chip-ghost">Prestator: {{ booking.provider|default:"-" }}</span>
+                <span class="chip chip-ghost">Voluntar: {{ booking.provider|default:"-" }}</span>
                 {% if booking.is_urgent %}
                     <span class="chip chip-ghost">Urgenta: {{ booking.get_urgency_level_display }}</span>
                 {% endif %}
@@ -67,7 +67,7 @@
 
     <div class="booking-progress">
         <div class="progress-header">
-            <h3>Etapele comenzii</h3>
+            <h3>Etapele cererii</h3>
             <span class="muted">Vezi unde se afla cererea ta</span>
         </div>
         <div class="progress-meter" style="--progress:{% if booking.status == 'completed' or booking.status == 'canceled' or booking.status == 'declined' %}100{% elif booking.status == 'awaiting_client' %}90{% elif booking.status == 'in_progress' %}75{% elif booking.status == 'confirmed' %}60{% else %}30{% endif %}%">
@@ -85,7 +85,7 @@
                 <div class="dot"></div>
                 <div>
                     <div class="step-title">Confirmata</div>
-                    <div class="muted">Prestatorul a acceptat</div>
+                    <div class="muted">Voluntarul a acceptat</div>
                 </div>
             </div>
             <div class="progress-step {% if booking.status in 'in_progress awaiting_client completed' %}active{% endif %} {% if booking.status in 'awaiting_client completed' %}done{% endif %}">
@@ -113,9 +113,9 @@
         {% if booking.status == 'reschedule_requested' %}
             <p class="muted" style="margin-top:8px;">Exista o solicitare de reprogramare in asteptare.</p>
         {% elif booking.status == 'canceled' %}
-            <p class="muted" style="margin-top:8px;">Comanda a fost anulata.</p>
+            <p class="muted" style="margin-top:8px;">Cererea a fost anulata.</p>
         {% elif booking.status == 'declined' %}
-            <p class="muted" style="margin-top:8px;">Comanda a fost refuzata de prestator.</p>
+            <p class="muted" style="margin-top:8px;">Cererea a fost refuzata de voluntar.</p>
         {% elif booking.status == 'awaiting_client' %}
             <p class="muted" style="margin-top:8px;">Asteptam confirmarea clientului pentru finalizare.</p>
         {% endif %}
@@ -124,23 +124,23 @@
     {% if can_manage %}
     <div class="actions-row">
         <a class="btn-primary" href="{% url 'bookings:reschedule' booking.id %}">Propune reprogramare</a>
-        <a class="btn-secondary" href="{% url 'bookings:cancel' booking.id %}">Anuleaza comanda</a>
-        <a class="btn-ghost" href="{% url 'bookings:repeat' booking.id %}">Replică</a>
+        <a class="btn-secondary" href="{% url 'bookings:cancel' booking.id %}">Anuleaza cererea</a>
+        <a class="btn-ghost" href="{% url 'bookings:repeat' booking.id %}">Replica</a>
         <a class="btn-ghost" href="{% url 'bookings:recurring_create' %}">Recurent</a>
-        <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">📅 ICS</a>
-        <a class="btn-ghost" href="{% url 'bookings:detail' booking.id %}?invoice=1">📄 Factura</a>
+        <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">ICS</a>
+        <a class="btn-ghost" href="{% url 'bookings:detail' booking.id %}?invoice=1">Factura</a>
     </div>
     {% endif %}
 </div>
 
 {% if can_provider_decide %}
 <div class="section card">
-    <h2>Confirmare prestator</h2>
+    <h2>Confirmare voluntar</h2>
     <p class="muted">Esti asignat la aceasta cerere. Confirma sau respinge.</p>
     <div class="actions-row">
         <form method="post" action="{% url 'bookings:accept' booking.id %}">
             {% csrf_token %}
-            <button class="btn-primary" type="submit">Accepta</button>
+            <button class="btn-primary" type="submit" data-pending-label="Se confirma...">Accepta</button>
         </form>
         <a class="btn-secondary" href="{% url 'bookings:decline' booking.id %}">Refuza</a>
     </div>
@@ -154,13 +154,13 @@
         <form method="post" action="{% url 'bookings:start' booking.id %}">
             {% csrf_token %}
             <div class="actions-row">
-                <button class="btn-primary" type="submit">Porneste lucrarea</button>
-                <span class="muted">Marcheaza comanda ca "In curs"</span>
+                <button class="btn-primary" type="submit" data-pending-label="Se porneste...">Porneste lucrarea</button>
+                <span class="muted">Marcheaza cererea ca "In curs"</span>
             </div>
         </form>
     {% elif can_complete %}
         <div class="actions-row">
-        <a class="btn-primary" href="{% url 'bookings:complete' booking.id %}">Finalizeaza comanda</a>
+        <a class="btn-primary" href="{% url 'bookings:complete' booking.id %}">Finalizeaza cererea</a>
         </div>
     {% endif %}
 </div>
@@ -173,27 +173,13 @@
     <div class="actions-row">
         <form method="post" action="{% url 'bookings:client_confirm' booking.id %}">
             {% csrf_token %}
-            <button class="btn-primary" type="submit">Confirm finalizarea</button>
+            <button class="btn-primary" type="submit" data-pending-label="Se confirma...">Confirm finalizarea</button>
         </form>
         <form method="post" action="{% url 'bookings:client_dispute' booking.id %}">
             {% csrf_token %}
-            <button class="btn-secondary" type="submit">Contesta</button>
+            <button class="btn-secondary" type="submit" data-pending-label="Se trimite disputa...">Contesta</button>
         </form>
     </div>
-</div>
-{% endif %}
-
-{% if booking.dispute %}
-<div class="section card warning">
-    <h2>Disputa</h2>
-    <p><strong>Status:</strong> {{ booking.dispute.get_status_display }}</p>
-    <p><strong>Motiv:</strong> {{ booking.dispute.reason|default:"-" }}</p>
-    {% if booking.dispute.resolution_note %}
-        <p class="muted">Rezolvare: {{ booking.dispute.resolution_note }}</p>
-    {% endif %}
-    {% if booking.dispute.status == 'open' and can_complete %}
-        <a class="btn-primary" href="{% url 'bookings:resolve_dispute' booking.id %}">Marcheaza rezolvata</a>
-    {% endif %}
 </div>
 {% endif %}
 
@@ -212,11 +198,11 @@
         <div class="actions-row">
             <form method="post" action="{% url 'bookings:reschedule_decision' booking.id pending_reschedule.id 'accept' %}">
                 {% csrf_token %}
-                <button class="btn-primary" type="submit">Accepta</button>
+                <button class="btn-primary" type="submit" data-pending-label="Se accepta...">Accepta</button>
             </form>
             <form method="post" action="{% url 'bookings:reschedule_decision' booking.id pending_reschedule.id 'decline' %}">
                 {% csrf_token %}
-                <button class="btn-secondary" type="submit">Respinge</button>
+                <button class="btn-secondary" type="submit" data-pending-label="Se respinge...">Respinge</button>
             </form>
         </div>
     {% else %}
@@ -230,7 +216,7 @@
     <div class="section-header">
         <div>
             <h2>Disputa</h2>
-            <p class="muted">Gestionati clarificarile pentru aceasta comanda.</p>
+            <p class="muted">Gestionati clarificarile pentru aceasta cerere.</p>
         </div>
         <span class="chip status-{{ booking.dispute.status }}">Status: {{ booking.dispute.get_status_display }}</span>
     </div>
@@ -259,15 +245,9 @@
         {% if user == booking.client or user == booking.provider %}
         <form method="post" action="{% url 'bookings:dispute_message' booking.id %}" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="field">
-                <label>Mesaj</label>
-                <textarea name="text" rows="3" required></textarea>
-            </div>
-            <div class="field">
-                <label>Atașament (optional)</label>
-                <input type="file" name="attachment">
-            </div>
-            <button class="btn-primary" type="submit">Trimite mesaj</button>
+            {% include "components/_form_field.html" with field=message_form.text %}
+            {% include "components/_form_field.html" with field=message_form.attachment %}
+            <button class="btn-primary" type="submit" data-pending-label="Se trimite...">Trimite mesaj</button>
         </form>
         {% endif %}
     {% endif %}
@@ -275,7 +255,7 @@
 {% endif %}
 
 <div class="section card">
-    <h2>Timeline comanda</h2>
+    <h2>Timeline cerere</h2>
     {% if events %}
         <ul class="booking-timeline">
         {% for event in events %}
@@ -315,8 +295,19 @@
     {% if user == booking.client or user == booking.provider %}
     <form method="post" action="{% url 'bookings:attachment_upload' booking.id %}" enctype="multipart/form-data" style="margin-top:12px;">
         {% csrf_token %}
-        {{ attachment_form.as_p }}
-        <button class="btn-primary" type="submit">Adaugă fișier</button>
+        {% with upload_form=form|default:attachment_form %}
+            {% if upload_form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in upload_form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in upload_form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
+        {% endwith %}
+        <button class="btn-primary" type="submit" data-pending-label="Se incarca...">Adauga fisier</button>
     </form>
     {% endif %}
 </div>

@@ -1,4 +1,30 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Mobile sidebar toggle for platform shell.
+  const sidebar = document.getElementById("shell-sidebar");
+  const openSidebarButtons = document.querySelectorAll("[data-open-sidebar]");
+
+  const closeSidebar = () => {
+    document.body.classList.remove("sidebar-open");
+  };
+
+  openSidebarButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.body.classList.toggle("sidebar-open");
+    });
+  });
+
+  sidebar?.addEventListener("click", (event) => {
+    if (event.target === sidebar) closeSidebar();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSidebar();
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 960) closeSidebar();
+  });
+
   // Toasts: autoclose and manual close
   document.querySelectorAll(".alert").forEach((alert) => {
     const closeBtn = alert.querySelector(".alert-close");
@@ -16,8 +42,66 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  const focusableSelector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    'summary',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(",");
+
+  const getFocusable = (container) =>
+    Array.from(container.querySelectorAll(focusableSelector)).filter(
+      (node) => !node.hasAttribute("hidden") && !node.closest("[hidden]")
+    );
+
+  const closeModal = (modal) => {
+    if (!modal) return;
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    const returnFocus = modal._returnFocus;
+    if (returnFocus && typeof returnFocus.focus === "function") {
+      returnFocus.focus();
+    }
+  };
+
+  const openModal = (modal, preferredFocus) => {
+    if (!modal) return;
+    modal._returnFocus = document.activeElement;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    const target = preferredFocus || getFocusable(modal)[0];
+    if (target && typeof target.focus === "function") {
+      requestAnimationFrame(() => target.focus());
+    }
+  };
+
+  // Pending submit state for mutation forms.
+  document.querySelectorAll("form").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      const submitter = event.submitter;
+      const button = submitter?.matches("button[type='submit'][data-pending-label]")
+        ? submitter
+        : form.querySelector("button[type='submit'][data-pending-label]");
+
+      if (!button || button.disabled) return;
+
+      if (!button.dataset.originalLabel) {
+        button.dataset.originalLabel = button.textContent.trim();
+      }
+
+      button.textContent = button.dataset.pendingLabel;
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+      form.setAttribute("aria-busy", "true");
+    });
+  });
+
   // Live notifications: popup + sound
   const isAuthenticated = !!document.querySelector(".nav-user");
+  const soundEnabled = document.body.dataset.notificationSoundEnabled === "true";
   let seenNotifIds = new Set();
   let notifsBootstrapped = false;
   let audioUnlocked = false;
@@ -35,11 +119,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  window.addEventListener("pointerdown", unlockAudio, { once: true });
-  window.addEventListener("keydown", unlockAudio, { once: true });
+  if (soundEnabled) {
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+  }
 
   const playNotificationSound = () => {
-    if (!audioUnlocked || !audioCtx) return;
+    if (!soundEnabled || !audioUnlocked || !audioCtx) return;
     try {
       const now = audioCtx.currentTime;
       const gain = audioCtx.createGain();
@@ -162,6 +248,201 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchNotifsLive();
     setInterval(fetchNotifsLive, 12000);
   }
+
+  // User menu keyboard navigation
+  const accountMenus = Array.from(document.querySelectorAll("[data-menu]"));
+  const closeMenus = (exceptMenu = null) => {
+    accountMenus.forEach((menu) => {
+      if (menu !== exceptMenu) menu.open = false;
+    });
+  };
+
+  accountMenus.forEach((menu) => {
+    const trigger = menu.querySelector("[data-menu-trigger]");
+    const items = () => Array.from(menu.querySelectorAll("[data-menu-item]"));
+    const syncExpanded = () => {
+      trigger?.setAttribute("aria-expanded", menu.open ? "true" : "false");
+    };
+
+    syncExpanded();
+    menu.addEventListener("toggle", () => {
+      if (menu.open) closeMenus(menu);
+      syncExpanded();
+    });
+
+    trigger?.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        menu.open = true;
+        requestAnimationFrame(() => items()[0]?.focus());
+      }
+    });
+
+    menu.addEventListener("keydown", (event) => {
+      if (!menu.open) return;
+      const menuItems = items();
+      if (!menuItems.length) return;
+
+      const currentIndex = menuItems.indexOf(document.activeElement);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        menu.open = false;
+        trigger?.focus();
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % menuItems.length;
+        menuItems[nextIndex]?.focus();
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const nextIndex = currentIndex <= 0 ? menuItems.length - 1 : currentIndex - 1;
+        menuItems[nextIndex]?.focus();
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        menuItems[0]?.focus();
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        menuItems[menuItems.length - 1]?.focus();
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    accountMenus.forEach((menu) => {
+      if (menu.open && !menu.contains(event.target)) {
+        menu.open = false;
+      }
+    });
+  });
+
+  // Command palette
+  const commandPalette = document.getElementById("command-palette");
+  const commandInput = commandPalette?.querySelector("[data-command-input]");
+  const commandEmpty = commandPalette?.querySelector("[data-command-empty]");
+  const commandItems = commandPalette
+    ? Array.from(commandPalette.querySelectorAll("[data-command-item]"))
+    : [];
+
+  const getVisibleCommandItems = () => commandItems.filter((item) => !item.hidden);
+
+  const filterCommandItems = () => {
+    if (!commandInput) return;
+    const term = commandInput.value.toLowerCase().trim();
+    let visibleCount = 0;
+    commandItems.forEach((item) => {
+      const haystack = (item.dataset.commandLabel || item.textContent || "").toLowerCase();
+      const matches = !term || haystack.includes(term);
+      item.hidden = !matches;
+      if (matches) visibleCount += 1;
+    });
+    if (commandEmpty) commandEmpty.hidden = visibleCount > 0;
+  };
+
+  const openCommandPalette = () => {
+    if (!commandPalette) return;
+    if (commandInput) {
+      commandInput.value = "";
+      filterCommandItems();
+    }
+    openModal(commandPalette, commandInput);
+  };
+
+  const moveCommandFocus = (direction) => {
+    const visibleItems = getVisibleCommandItems();
+    if (!visibleItems.length) return;
+    const currentIndex = visibleItems.indexOf(document.activeElement);
+    const nextIndex =
+      currentIndex < 0
+        ? 0
+        : (currentIndex + direction + visibleItems.length) % visibleItems.length;
+    visibleItems[nextIndex]?.focus();
+  };
+
+  document.querySelectorAll("[data-open-command-palette]").forEach((button) => {
+    button.addEventListener("click", () => openCommandPalette());
+  });
+
+  commandInput?.addEventListener("input", filterCommandItems);
+  commandInput?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveCommandFocus(1);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const firstVisible = getVisibleCommandItems()[0];
+      if (firstVisible) {
+        event.preventDefault();
+        firstVisible.click();
+      }
+    }
+  });
+
+  commandItems.forEach((item) => {
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveCommandFocus(1);
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        if (document.activeElement === getVisibleCommandItems()[0] && commandInput) {
+          commandInput.focus();
+        } else {
+          moveCommandFocus(-1);
+        }
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        getVisibleCommandItems()[0]?.focus();
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        const visibleItems = getVisibleCommandItems();
+        visibleItems[visibleItems.length - 1]?.focus();
+      }
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      if (commandPalette?.classList.contains("open")) {
+        closeModal(commandPalette);
+      } else {
+        openCommandPalette();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      const openModalEl = document.querySelector(".modal.open");
+      if (openModalEl) {
+        event.preventDefault();
+        closeModal(openModalEl);
+        return;
+      }
+
+      const openMenu = accountMenus.find((menu) => menu.open);
+      if (openMenu) {
+        event.preventDefault();
+        openMenu.open = false;
+        openMenu.querySelector("[data-menu-trigger]")?.focus();
+      }
+    }
+  });
 
   // Reveal fallback
   const revealTargets = document.querySelectorAll(".reveal");
@@ -521,19 +802,56 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-open-modal]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const modal = document.querySelector(btn.dataset.openModal);
-      modal?.classList.add("open");
+      openModal(modal);
     });
   });
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      btn.closest(".modal")?.classList.remove("open");
+      closeModal(btn.closest(".modal"));
+    });
+  });
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal(modal);
+      }
+    });
+    modal.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable(modal);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  });
+
+  // Chat keyboard support
+  document.querySelectorAll(".chat-composer textarea").forEach((textarea) => {
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        textarea.form?.requestSubmit();
+      }
     });
   });
 
   // Skeleton groups
   document.querySelectorAll("[data-skeleton]").forEach((group) => {
+    if (!group.children.length) return;
+    const duration = parseInt(group.dataset.skeletonDuration || "550", 10);
     group.classList.add("loading");
-    setTimeout(() => group.classList.remove("loading"), 600);
+    group.setAttribute("aria-busy", "true");
+    setTimeout(() => {
+      group.classList.remove("loading");
+      group.setAttribute("aria-busy", "false");
+    }, duration);
   });
 
   // Fetch live reviews

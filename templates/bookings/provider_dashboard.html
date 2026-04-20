@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Dashboard prestator{% endblock %}
+{% block title %}Dashboard voluntar{% endblock %}
 {% block content %}
 <div class="section card glass split-hero tight">
     <div>
-        <div class="badge">Dashboard prestator</div>
+        <div class="badge">Dashboard voluntar</div>
         <h1>Salut, {{ user.display_name }}</h1>
-        <p class="muted">Rezervările viitoare, dispute și seriile recurente la care ești asignat.</p>
+        <p class="muted">Cererile viitoare, dispute și seriile recurente la care ești asignat.</p>
     </div>
     <div class="pill-row">
         <span class="chip chip-ghost">Gestionare rapidă</span>
-        <a class="btn-primary" href="/bookings/">Comenzile mele</a>
-        <span class="chip chip-ghost">Proiect social (fără venituri)</span>
+        <a class="btn-primary" href="/bookings/">Cererile mele</a>
+        <span class="chip chip-ghost">Voluntar verificat</span>
     </div>
 </div>
 
 <div class="section card glass">
     <div class="deck-grid">
         <div class="card-neo">
-            <div class="badge-soft">Comenzi ultimele 30 zile</div>
+            <div class="badge-soft">Cereri ultimele 30 zile</div>
             <h2>{{ provider_stats.total_30d }}</h2>
             <p class="muted">Finalizate: {{ provider_stats.completed_30d }} · Anulate: {{ provider_stats.canceled_30d }}</p>
         </div>
@@ -27,9 +27,9 @@
             <p class="muted">Confirmări în ultimele 30 zile</p>
         </div>
         <div class="card-neo">
-            <div class="badge-soft">Proiect social</div>
-            <h2>Fără prețuri</h2>
-            <p class="muted">Nu afișăm costuri</p>
+            <div class="badge-soft">Ore oferite</div>
+            <h2>{{ provider_stats.hours_30d|default:"0" }}</h2>
+            <p class="muted">Timp donat comunității în ultimele 30 zile</p>
         </div>
         <div class="card-neo">
             <div class="badge-soft">Rating</div>
@@ -41,7 +41,7 @@
 
 <div class="section card glass">
     <div class="section-header">
-        <div><div class="badge">În lucru</div><h2>Rezervări viitoare</h2></div>
+        <div><div class="badge">În lucru</div><h2>Cereri viitoare</h2></div>
     </div>
     <div class="booking-grid">
         {% for booking in upcoming %}
@@ -58,7 +58,7 @@
                 </div>
             </div>
         {% empty %}
-            <p class="muted">Nu ai rezervări viitoare.</p>
+            <p class="muted">Nu ai cereri viitoare.</p>
         {% endfor %}
     </div>
 </div>
@@ -77,7 +77,7 @@
                 <p>{{ dispute.reason|default:"Fără motiv" }}</p>
                 <p class="muted">Client: {{ dispute.booking.client.display_name }}</p>
                 <div class="actions-row">
-                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi comanda</a>
+                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi cererea</a>
                 </div>
             </div>
         {% empty %}

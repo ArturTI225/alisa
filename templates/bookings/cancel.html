@@ -1,29 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Anulează comanda #{{ booking.id }}{% endblock %}
+{% block title %}Anuleaza cererea #{{ booking.id }}{% endblock %}
 {% block content %}
 <div class="section card form-layout danger">
     <div class="form-side">
-        <p class="muted">Comanda #{{ booking.id }}</p>
-        <h1>Confirmă anularea</h1>
+        <p class="muted">Cerere #{{ booking.id }}</p>
+        <h1>Confirma anularea</h1>
         <div class="summary-box danger">
             <div class="summary-row">
                 <span class="label">Serviciu</span>
                 <span>{{ booking.service }}</span>
             </div>
             <div class="summary-row">
-                <span class="label">Programată</span>
+                <span class="label">Programata</span>
                 <span>{{ booking.scheduled_start|date:"d M Y H:i" }}</span>
             </div>
-            <p class="muted">Anularea poate trimite notificări prestatorului.</p>
+            <p class="muted">Anularea poate trimite notificari voluntarului.</p>
         </div>
     </div>
     <div class="form-main">
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
             <div class="actions-row">
-                <button class="btn-primary" type="submit">Confirmă anularea</button>
-                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Înapoi</a>
+                <button class="btn-primary" type="submit" data-pending-label="Se anuleaza...">Confirma anularea</button>
+                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Inapoi</a>
             </div>
         </form>
     </div>

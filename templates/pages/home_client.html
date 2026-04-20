@@ -1,140 +1,113 @@
 {% extends "base.html" %}
 {% block title %}Panou solicitant{% endblock %}
 {% block content %}
-
-<section class="hero-spotlight hero-split">
-    <div class="hero-copy">
-        <div class="badge badge-glow">Panou solicitant</div>
-        <h1>Publica o cerere de ajutor</h1>
-        <p class="muted">
-            Completeaza cererea, adauga media si primesti aplicatii de la voluntari.
-            Dupa acceptare, discutati in chat si urmariti progresul ajutorului.
-        </p>
-        <div class="pill-row">
-            <span class="pill">Categorie</span>
-            <span class="pill">Descriere scurta</span>
-            <span class="pill">Urgenta</span>
-            <span class="pill">Foto / video</span>
-        </div>
-        {% if not user.is_verified %}
-            <p class="muted text-sm">
-                Nota: pentru urgenta <strong>High</strong> contul trebuie verificat.
-            </p>
-        {% endif %}
-    </div>
-    <div class="hero-panel">
-        <form method="post" action="{% url 'pages:help_request_create' %}" enctype="multipart/form-data">
-            {% csrf_token %}
-            {{ request_form.category.label_tag }}
-            {{ request_form.category }}
-            {{ request_form.description.label_tag }}
-            {{ request_form.description }}
-            <div class="split-section">
-                <div>
-                    {{ request_form.urgency.label_tag }}
-                    {{ request_form.urgency }}
-                </div>
-                <div>
-                    {{ request_form.city.label_tag }}
-                    {{ request_form.city }}
-                </div>
-            </div>
-            {{ request_form.region.label_tag }}
-            {{ request_form.region }}
-            {{ request_form.media.label_tag }}
-            {{ request_form.media }}
-            <div class="actions-row">
-                <button class="btn-primary" type="submit">Trimite cererea</button>
-            </div>
-        </form>
-    </div>
-</section>
-
-<section class="section">
-    <header class="section-header">
+<section class="section civic-screen home-beneficiary-screen">
+    <header class="civic-view-header">
         <div>
-            <div class="badge">Istoric</div>
-            <h2>Cererile mele de ajutor</h2>
+            <p class="civic-eyebrow">Astăzi · {% now "d M Y" %} · ora {% now "H:i" %}</p>
+            <h1>Bună dimineața, {{ user.first_name|default:user.display_name }}.</h1>
+            <p class="muted">Astăzi la ora 10:00 vine voluntarul să te ajute. Poți să-i scrii oricând dacă ai întrebări.</p>
         </div>
     </header>
-    <div class="booking-grid">
-        {% for req in client_requests %}
-            <article class="booking-card">
-                <div class="booking-card__top">
-                    <strong>#{{ req.id }} - {{ req.title }}</strong>
-                    <span class="chip chip-ghost">{{ req.status }}</span>
-                </div>
-                <p class="muted">{{ req.description|truncatechars:200 }}</p>
-                <div class="summary-row">
-                    <span class="label">Categorie</span>
-                    <span>{{ req.category.name }}</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Urgenta</span>
-                    <span>{{ req.urgency }}</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Locatie</span>
-                    <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Voluntar</span>
-                    <span>{% if req.matched_volunteer %}{{ req.matched_volunteer.display_name }}{% else %}-{% endif %}</span>
-                </div>
-                <div class="summary-row">
-                    <span class="label">Creat</span>
-                    <span>{{ req.created_at|date:"d M Y H:i" }}</span>
-                </div>
 
-                {% if req.chat_conversation_id %}
-                    <div class="actions-row">
-                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Chat</a>
-                    </div>
+    {% with pinned=client_requests|first %}
+    <article class="card civic-highlight-card home-beneficiary-visit">
+        <div class="civic-highlight-card__body">
+            <div class="avatar avatar-oval home-beneficiary-visit__avatar">
+                {% if pinned and pinned.matched_volunteer %}
+                    {{ pinned.matched_volunteer.display_name|first|upper }}
+                {% else %}
+                    V
                 {% endif %}
+            </div>
+            <div>
+                <div class="civic-highlight-card__meta">Vizita de astăzi · 10:00</div>
+                <h2>
+                    {% if pinned and pinned.matched_volunteer %}
+                        {{ pinned.matched_volunteer.display_name }} vine la tine
+                    {% else %}
+                        Voluntarul vine la tine
+                    {% endif %}
+                </h2>
+                <p class="muted">
+                    Pentru {% if pinned %}{{ pinned.title|default:"cererea ta" }}{% else %}cererea ta activă{% endif %}
+                    {% if pinned and pinned.matched_volunteer %}· l-ai mai rugat de 4 ori.{% endif %}
+                </p>
+            </div>
+            <div class="home-beneficiary-visit__actions actions-row">
+                {% if pinned %}
+                    {% if pinned.chat_conversation_id %}
+                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' pinned.chat_conversation_id %}">Scrie-i un mesaj</a>
+                    {% endif %}
+                    <a class="btn-primary" href="{% url 'bookings:detail' pinned.id %}">Deschide vizita</a>
+                {% else %}
+                    <a class="btn-primary" href="{% url 'bookings:list' %}">Deschide vizita</a>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% endwith %}
 
-                {% if req.status == 'open' or req.status == 'in_review' %}
-                    <div class="card-neo">
-                        <strong>Aplicatii voluntari</strong>
-                        <div class="messages-thread">
-                            {% for app in req.applications.all %}
-                                {% if app.status == 'pending' %}
-                                    <div class="message-card">
-                                        <div class="summary-row">
-                                            <span>{{ app.volunteer.display_name }}</span>
-                                            <span class="chip chip-ghost">{{ app.status }}</span>
-                                        </div>
-                                        <p class="muted">{{ app.message|default:"Fara mesaj" }}</p>
-                                        <form method="post" action="{% url 'pages:application_accept' app.id %}">
-                                            {% csrf_token %}
-                                            <button class="btn-primary slim" type="submit">Accepta si deschide chat</button>
-                                        </form>
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <p class="muted">Nu exista aplicatii inca.</p>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
+    <div class="home-beneficiary-actions">
+        <a class="card home-beneficiary-actions__card" href="{% url 'bookings:create' %}">
+            <div class="home-beneficiary-actions__icon">+</div>
+            <h2>Am nevoie de ajutor cu altceva</h2>
+            <p class="muted">Spui cu ce ai nevoie, primești aplicații de la voluntari verificați și alegi pe cine cunoști.</p>
+        </a>
 
-                {% if req.status_history %}
-                    <div class="card-neo">
-                        <strong>Istoric status</strong>
-                        <ul class="booking-timeline">
-                            {% for item in req.status_history %}
-                                <li class="booking-timeline__item">
-                                    <span class="booking-timeline__time">{{ item.timestamp|slice:":16"|default:"-" }}</span>
-                                    <span>{{ item.status }}</span>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
-            </article>
-        {% empty %}
-            <p class="muted">Nu ai cereri inca.</p>
-        {% endfor %}
+        <a class="card home-beneficiary-actions__card" href="{% url 'pages:applications' %}">
+            <div class="home-beneficiary-actions__badge badge">{{ client_requests|length }} aplicații noi</div>
+            <div class="home-beneficiary-actions__icon">&#9673;</div>
+            <h2>Văd cine vrea să mă ajute</h2>
+            <p class="muted">Voluntarii care au răspuns apar mai jos. Uită-te pe rând, fără grabă.</p>
+        </a>
     </div>
+
+    <article class="card home-beneficiary-safe">
+        <div>
+            <p class="civic-eyebrow">Ești în siguranță</p>
+            <p class="muted">Toți voluntarii sunt verificați. Poți apăsa butonul Ajutor acum din bara de sus oricând ai nevoie.</p>
+        </div>
+        <a class="btn-secondary" href="{% url 'accounts:profile' %}">Persoanele mele de încredere</a>
+    </article>
+
+    <section class="section" id="applications">
+        <header class="section-header">
+            <div>
+                <div class="badge">Aplicații primite</div>
+                <h2>Cine m-a ajutat</h2>
+            </div>
+        </header>
+        <div class="booking-grid"{% if client_requests %} data-skeleton data-skeleton-duration="560"{% endif %}>
+            {% for req in client_requests %}
+                {% if req.status == 'open' or req.status == 'in_review' %}
+                    {% for app in req.applications.all %}
+                        {% if app.status == 'pending' %}
+                            <article class="booking-card civic-application-card">
+                                <div class="booking-card__top">
+                                    <strong>{{ app.volunteer.display_name }}</strong>
+                                    <span class="chip chip-ghost">{{ app.status }}</span>
+                                </div>
+                                <p class="muted">Cerere: #{{ req.id }} · {{ req.title }}</p>
+                                <p>{{ app.message|default:"Vreau să te ajut cu această cerere." }}</p>
+                                <div class="actions-row">
+                                    <form method="post" action="{% url 'pages:application_accept' app.id %}">
+                                        {% csrf_token %}
+                                        <button class="btn-primary" type="submit" data-pending-label="Se confirmă...">Da, vreau să mă ajute</button>
+                                    </form>
+                                    {% if req.chat_conversation_id %}
+                                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Vreau să-i scriu</a>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% empty %}
+                {% include "components/_empty_state.html" with title="Încă nu ai aplicații" body="După publicare, voluntarii disponibili vor apărea aici." %}
+            {% endfor %}
+        </div>
+    </section>
 </section>
 
 {% endblock %}

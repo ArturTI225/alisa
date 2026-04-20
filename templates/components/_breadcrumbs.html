@@ -1,0 +1,21 @@
+{% comment %}
+  Breadcrumb navigation.
+
+  Required:
+    items — list of dicts with label and optional url
+{% endcomment %}
+{% if items %}
+<nav class="breadcrumbs" aria-label="Navigare secundara">
+  <ol class="breadcrumbs__list">
+    {% for item in items %}
+      <li class="breadcrumbs__item">
+        {% if item.url %}
+          <a href="{{ item.url }}">{{ item.label }}</a>
+        {% else %}
+          <span aria-current="page">{{ item.label }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

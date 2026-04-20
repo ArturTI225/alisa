@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Rezolva disputa comanda #{{ booking.id }}{% endblock %}
+{% block title %}Rezolva disputa cererii #{{ booking.id }}{% endblock %}
 {% block content %}
 <div class="section card form-layout">
     <div class="form-side">
-        <p class="muted">Comanda #{{ booking.id }}</p>
+        <p class="muted">Cerere #{{ booking.id }}</p>
         <h1>Rezolva disputa</h1>
         <div class="summary-box">
             <div class="summary-row">
@@ -16,9 +16,18 @@
     <div class="form-main">
         <form method="post">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% if form.non_field_errors %}
+                <div class="alert error">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "components/_form_field.html" with field=field %}
+            {% endfor %}
             <div class="actions-row">
-                <button class="btn-primary" type="submit">Marcheaza rezolvata</button>
+                <button class="btn-primary" type="submit" data-pending-label="Se inchide disputa...">Marcheaza rezolvata</button>
                 <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Inapoi</a>
             </div>
         </form>

@@ -35,13 +35,13 @@
                     <span class="chip status-{{ dispute.status }}">{{ dispute.get_status_display }}</span>
                 </div>
                 <h3>{{ dispute.reason|default:"Fără motiv" }}</h3>
-                <p class="muted">Client: {{ dispute.booking.client.display_name }} · Prestator: {{ dispute.booking.provider|default:"-" }}</p>
+                <p class="muted">Client: {{ dispute.booking.client.display_name }} · Voluntar: {{ dispute.booking.provider|default:"-" }}</p>
                 <div class="pill-row">
                     {% if dispute.assigned_to %}<span class="chip chip-ghost">Asignat: {{ dispute.assigned_to }}</span>{% endif %}
                     {% if dispute.escalated_at %}<span class="chip chip-ghost">Escalat: {{ dispute.escalated_at|date:"d M H:i" }}</span>{% endif %}
                 </div>
                 <div class="actions-row">
-                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi comanda</a>
+                    <a class="btn-secondary" href="/bookings/{{ dispute.booking.id }}/">Vezi cererea</a>
                     {% if dispute.status == 'open' %}
                         <form method="post" action="{% url 'bookings:dispute_assign' dispute.booking.id %}">
                             {% csrf_token %}

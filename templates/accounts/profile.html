@@ -1,61 +1,197 @@
 {% extends "base.html" %}
 {% block title %}Profilul meu{% endblock %}
 {% block content %}
-<div class="section card glass">
-    <div class="section-header">
+<section class="section civic-screen profile-shell">
+    <header class="civic-view-header">
         <div>
-            <p class="muted">Profil</p>
-            <h1>Bun venit, {{ user.display_name }}</h1>
-            <p class="muted">Rol: {{ user.get_role_display }} | Telefon: {{ user.phone|default:"-" }} | Oraș: {{ user.city|default:"-" }}</p>
+            <p class="civic-eyebrow">Centru cont</p>
+            <h1>{{ user.display_name }}</h1>
+            <p class="muted">Rol activ: {{ user.get_role_display }}. Vezi rapid tot ce tine de profil, cereri si incredere.</p>
         </div>
-        <div class="pill-row">
-            <span class="chip chip-ghost">Comenzi: {{ bookings_count }}</span>
-            <span class="chip chip-ghost">Favorite servicii: {{ favorite_services|length }}</span>
-            <span class="chip chip-ghost">Favorite prestatori: {{ favorite_providers|length }}</span>
+    </header>
+
+    <article class="card civic-profile-head">
+        <div class="civic-profile-head__identity">
+            {% include "components/_avatar.html" with user=user %}
+            <div>
+                <h2>{{ user.display_name }}</h2>
+                <p class="muted">{{ user.city|default:"Oras necompletat" }} · {{ user.phone|default:"Telefon necompletat" }}</p>
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Notificari necitite: {{ unread_notifications_count }}</span>
+                    {% if user.rating_count %}
+                        <span class="chip chip-ghost">Rating: {{ user.rating_avg }} / 5</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="civic-profile-head__tabs pill-row">
+            <span class="chip">Info generale</span>
+            <span class="chip chip-ghost">Verificare</span>
+            <span class="chip chip-ghost">Activitate</span>
+            <span class="chip chip-ghost">Setari</span>
+        </div>
+        <div class="actions-row">
+            <a class="btn-primary" href="{% url 'bookings:list' %}">Vezi cererile</a>
+            <a class="btn-secondary" href="{% url 'accounts:notifications' %}">Notificari</a>
+            <a class="btn-ghost" href="{% url 'accounts:favorites' %}">Favorite</a>
+            <a class="btn-ghost" href="{% url 'accounts:notification_preferences' %}">Preferinte</a>
+        </div>
+    </article>
+
+    <div class="profile-hero__stats">
+        <div class="profile-stat">
+            <span class="muted text-sm">Cereri ca solicitant</span>
+            <strong>{{ client_bookings_count }}</strong>
+            <span class="muted text-sm">Toate cererile trimise din acest cont.</span>
+        </div>
+        <div class="profile-stat">
+            <span class="muted text-sm">Cereri active</span>
+            <strong>{{ active_bookings_count }}</strong>
+            <span class="muted text-sm">Cereri care inca se misca in workflow.</span>
+        </div>
+        <div class="profile-stat">
+            <span class="muted text-sm">Finalizate</span>
+            <strong>{{ completed_bookings_count }}</strong>
+            <span class="muted text-sm">Fluxuri inchise complet in platforma.</span>
+        </div>
+        <div class="profile-stat">
+            <span class="muted text-sm">Favorite salvate</span>
+            <strong>{{ total_favorites_count }}</strong>
+            <span class="muted text-sm">Servicii si voluntari pastrati pentru revenire rapida.</span>
         </div>
     </div>
+
     {% if profile %}
-        <div class="glass-lite" style="padding:12px;border-radius:12px;">
-            <h3>Profil prestator</h3>
-            <p>Status verificare: {{ profile.get_verification_status_display }}</p>
-            <p>Tarif: proiect social (fără costuri publice)</p>
-            <p>Competențe: {% for skill in profile.skills.all %}{{ skill.name }}{% if not forloop.last %}, {% endif %}{% empty %}Completează competențele în admin.{% endfor %}</p>
-        </div>
+        <article class="card profile-provider">
+            <div class="section-header">
+                <div>
+                    <p class="muted">Profil voluntar</p>
+                    <h2>Panou rapid pentru activitatea de prestator</h2>
+                    <p class="muted">Statutul de verificare, competentele si semnalele de incredere apar aici intr-un singur loc.</p>
+                </div>
+                <div class="pill-row">
+                    <span class="chip chip-ghost">Cereri ca voluntar: {{ provider_bookings_count }}</span>
+                    <span class="chip chip-ghost">Cereri completate: {{ profile.completed_requests }}</span>
+                    <span class="chip chip-ghost">Ore ajutate: {{ profile.total_hours_helped }}</span>
+                </div>
+            </div>
+
+            <div class="profile-provider__grid">
+                <div class="profile-provider__card">
+                    <h3>Status</h3>
+                    <p class="muted">Verificare: {{ profile.get_verification_status_display }}</p>
+                    <p class="muted">Experienta: {{ profile.experience_years }} ani</p>
+                    <p class="muted">Model de lucru: proiect social, fara costuri afisate public.</p>
+                </div>
+
+                <div class="profile-provider__card">
+                    <h3>Competente</h3>
+                    <div class="pill-row">
+                        {% for skill in profile.skills.all %}
+                            <span class="chip chip-ghost">{{ skill.name }}</span>
+                        {% empty %}
+                            <span class="muted">Completeaza competentele in admin sau prin fluxul intern.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="profile-provider__card">
+                    <h3>Insigne si note</h3>
+                    <div class="pill-row">
+                        {% for badge in profile.badges.all %}
+                            <span class="chip chip-ghost">{{ badge.name }}</span>
+                        {% empty %}
+                            <span class="muted">Inca nu exista insigne acordate.</span>
+                        {% endfor %}
+                    </div>
+                    {% if profile.verification_note %}
+                        <p class="muted">{{ profile.verification_note }}</p>
+                    {% endif %}
+                    {% if profile.availability_notes %}
+                        <p class="muted">Disponibilitate: {{ profile.availability_notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
     {% endif %}
 
-    <h3>Adrese salvate</h3>
-    <div class="service-grid">
-        {% for address in addresses %}
-            <div class="service-card glass">
-                <h4>{{ address.label }}</h4>
-                <p class="muted">{{ address.city }}, {{ address.street }}</p>
-                {% if address.details %}<p class="muted">{{ address.details }}</p>{% endif %}
+    <div class="profile-panels">
+        <article class="card profile-panel">
+            <div class="section-header">
+                <div>
+                    <p class="muted">Adrese salvate</p>
+                    <h2>Locuri folosite frecvent</h2>
+                </div>
+                <span class="chip chip-ghost">{{ addresses|length }} adrese</span>
             </div>
-        {% empty %}
-            <p class="muted">Nu ai adrese încă. Adaugă una în timpul rezervării.</p>
-        {% endfor %}
-    </div>
+            {% if addresses %}
+                <div class="service-grid">
+                    {% for address in addresses %}
+                        <div class="service-card glass">
+                            <h3>{{ address.label }}</h3>
+                            <p class="muted">{{ address.city }}, {{ address.street }}</p>
+                            {% if address.details %}<p class="muted">{{ address.details }}</p>{% endif %}
+                            {% if address.is_default %}<span class="chip chip-ghost">Implicita</span>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% include "components/_empty_state.html" with title="Nu ai adrese salvate inca" body="Prima adresa apare automat cand trimiti o cerere sau cand salvezi una din fluxurile viitoare." cta_label="Trimite o cerere" cta_href="/bookings/new/" %}
+            {% endif %}
+        </article>
 
-    <h3>Favorite</h3>
-    <div class="service-grid">
-        {% for fav in favorite_services %}
-            <div class="service-card glass">
-                <h4>{{ fav.service.name }}</h4>
-                <p class="muted">fără costuri afișate</p>
+        <article class="card profile-panel">
+            <div class="section-header">
+                <div>
+                    <p class="muted">Servicii favorite</p>
+                    <h2>Scurtatura pentru ce folosesti des</h2>
+                </div>
+                <span class="chip chip-ghost">{{ favorite_services|length }} servicii</span>
             </div>
-        {% empty %}
-            <p class="muted">Niciun serviciu favorit.</p>
-        {% endfor %}
-    </div>
-    <div class="provider-grid">
-        {% for fav in favorite_providers %}
-            <div class="provider-card glass">
-                <h4>{{ fav.provider.display_name }}</h4>
-                <a class="btn-ghost" href="/accounts/providers/{{ fav.provider.id }}/">Profil</a>
+            {% if favorite_services %}
+                <div class="service-grid">
+                    {% for fav in favorite_services %}
+                        <div class="service-card glass">
+                            <h3>{{ fav.service.name }}</h3>
+                            <p class="muted">{{ fav.service.category.name }}</p>
+                            <p class="muted">Fara costuri afisate in interfata publica.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% include "components/_empty_state.html" with title="Niciun serviciu favorit" body="Salveaza serviciile pe care vrei sa le refolosesti rapid din catalog." cta_label="Vezi favoritele" cta_href="/accounts/favorites/" %}
+            {% endif %}
+        </article>
+
+        <article class="card profile-panel">
+            <div class="section-header">
+                <div>
+                    <p class="muted">Voluntari favoriti</p>
+                    <h2>Persoane la care vrei sa revii</h2>
+                </div>
+                <span class="chip chip-ghost">{{ favorite_providers|length }} voluntari</span>
             </div>
-        {% empty %}
-            <p class="muted">Niciun prestator favorit.</p>
-        {% endfor %}
+            {% if favorite_providers %}
+                <div class="provider-grid">
+                    {% for fav in favorite_providers %}
+                        <div class="provider-card glass">
+                            <div class="provider-head">
+                                {% include "components/_avatar.html" with user=fav.provider %}
+                                <div>
+                                    <h3>{{ fav.provider.display_name }}</h3>
+                                    <p class="muted">{{ fav.provider.city|default:"Locatie necompletata" }}</p>
+                                </div>
+                            </div>
+                            <div class="actions-row">
+                                <a class="btn-ghost" href="{% url 'accounts:provider_detail' fav.provider.id %}">Vezi profilul</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% include "components/_empty_state.html" with title="Niciun voluntar favorit" body="Cand salvezi un voluntar din profilul lui, il gasesti aici pentru revenire rapida." cta_label="Vezi favoritele" cta_href="/accounts/favorites/" %}
+            {% endif %}
+        </article>
     </div>
-</div>
+</section>
 {% endblock %}
