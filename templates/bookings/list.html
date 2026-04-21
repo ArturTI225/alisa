@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Cererile mele{% endblock %}
 {% block content %}
 <div class="section">
@@ -6,83 +6,152 @@
         <div>
             <p class="muted">Cererile tale</p>
             <h1>Cererile mele</h1>
-            <p class="muted">Aici vezi rapid ce e confirmat, ce mai asteapta si ce trebuie reprogramat.</p>
+            <p class="muted">Aici vezi rapid ce e publicat, ce e confirmat si ce trebuie reprogramat.</p>
             <div class="pill-row">
-                <span class="stat-pill">Total: {{ bookings|length }}</span>
-                <span class="chip chip-ghost">Filtre inteligente</span>
+                <span class="stat-pill">Total: {{ request_total }}</span>
+                <span class="chip chip-ghost">Cereri active</span>
             </div>
         </div>
         <div class="actions-row">
-            <a class="btn-primary" href="/bookings/new/">Cere ajutor</a>
+            <a class="btn-primary" href="{% url 'bookings:create' %}">Cere ajutor</a>
         </div>
     </div>
 
-    {% if bookings %}
-        <div class="filters-bar">
-            <div class="field">
-                <label for="booking-search" class="label">Cauta rapid</label>
-                <input id="booking-search" type="search" placeholder="Ex: instalatie, voluntar, Strada Test 10">
-            </div>
-            <div class="field">
-                <label for="booking-sort" class="label">Sortare</label>
-                <select id="booking-sort">
-                    <option value="desc">Cele mai noi</option>
-                    <option value="asc">Cele mai vechi</option>
-                </select>
-            </div>
-        </div>
-        <div class="filter-chips">
-            <button class="chip chip-filter active" data-booking-filter="all" type="button">Toate</button>
-            <button class="chip chip-filter" data-booking-filter="pending" type="button">In asteptare</button>
-            <button class="chip chip-filter" data-booking-filter="confirmed" type="button">Confirmate</button>
-            <button class="chip chip-filter" data-booking-filter="in_progress" type="button">In curs</button>
-            <button class="chip chip-filter" data-booking-filter="completed" type="button">Finalizate</button>
-            <button class="chip chip-filter" data-booking-filter="canceled" type="button">Anulate</button>
-            <button class="chip chip-filter" data-booking-filter="declined" type="button">Refuzate</button>
-            <button class="chip chip-filter" data-booking-filter="reschedule_requested" type="button">Reprogramare</button>
-        </div>
-        <div class="actions-row" style="margin:12px 0;">
-            <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">Export calendar (ICS)</a>
-        </div>
-        <div class="booking-grid" data-skeleton data-skeleton-duration="560">
-            {% for booking in bookings %}
-                <div class="booking-card status-{{ booking.status }}" data-tilt data-status="{{ booking.status }}" data-date="{{ booking.scheduled_start|date:"c" }}" data-search="{{ booking.service }} {{ booking.provider|default:"" }} {{ booking.address }}">
-                    <div class="booking-card__top">
-                        <div class="muted">#{{ booking.id }}</div>
-                        <span class="chip status-{{ booking.status }}">{{ booking.get_status_display }}</span>
-                        {% if booking.is_urgent %}
-                            <span class="chip chip-ghost">Urgent: {{ booking.get_urgency_level_display }}</span>
-                        {% endif %}
+    {% if help_requests or bookings %}
+        {% if help_requests %}
+            <section class="section section-slim">
+                <header class="section-header">
+                    <div>
+                        <div class="badge">Cereri comunitare</div>
+                        <h2>Publicate pentru voluntari</h2>
                     </div>
-                    <h3>{{ booking.service }}</h3>
-                    <div class="summary-row">
-                        <span class="label">Data</span>
-                        <span>{{ booking.scheduled_start|date:"d M H:i" }}</span>
+                    <a class="btn-secondary" href="{% url 'pages:applications' %}">Aplicatii</a>
+                </header>
+                <div class="booking-grid" data-skeleton data-skeleton-duration="520">
+                    {% for req in help_requests %}
+                        <article class="booking-card status-{{ req.status }}" data-search="{{ req.title }} {{ req.description }} {{ req.category.name }} {{ req.city }}">
+                            <div class="booking-card__top">
+                                <div class="muted">HR-{{ req.id }}</div>
+                                <span class="chip chip-ghost">{{ req.get_status_display }}</span>
+                                <span class="chip chip-ghost">{{ req.get_urgency_display }}</span>
+                            </div>
+                            <h3>{{ req.title }}</h3>
+                            <p class="muted">{{ req.description|truncatechars:180 }}</p>
+                            <div class="summary-row">
+                                <span class="label">Categorie</span>
+                                <span>{{ req.category.name }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Locatie</span>
+                                <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Solicitant</span>
+                                <span>{{ req.created_by.display_name }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Voluntar asignat</span>
+                                <span>{% if req.matched_volunteer %}{{ req.matched_volunteer.display_name }}{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="pill-row">
+                                <span class="chip chip-ghost">Aplicatii: {{ req.applications.all|length }}</span>
+                                <span class="chip chip-ghost">Actualizat: {{ req.updated_at|date:"d M H:i" }}</span>
+                            </div>
+                            <div class="actions-row">
+                                {% if req.chat_conversation_id %}
+                                    <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Chat</a>
+                                {% endif %}
+                                {% if req.created_by_id == user.id %}
+                                    <a class="btn-ghost" href="{% url 'pages:applications' %}">Vezi voluntarii</a>
+                                {% elif req.matched_volunteer_id == user.id %}
+                                    <span class="chip status-{{ req.status }}">Ajutorul meu</span>
+                                {% else %}
+                                    <span class="chip chip-ghost">Aplicatie trimisa</span>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if bookings %}
+            <section class="section section-slim">
+                <header class="section-header">
+                    <div>
+                        <div class="badge">Cereri programate</div>
+                        <h2>Programari si reprogramari</h2>
                     </div>
-                    <div class="summary-row">
-                        <span class="label">Voluntar</span>
-                        <span>{{ booking.provider|default:"-" }}
-                            {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
-                        </span>
+                    <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">Export calendar (ICS)</a>
+                </header>
+                <div class="filters-bar">
+                    <div class="field">
+                        <label for="booking-search" class="label">Cauta rapid</label>
+                        <input id="booking-search" type="search" placeholder="Ex: instalatie, voluntar, Strada Test 10">
                     </div>
-                    <div class="summary-row">
-                        <span class="label">Adresa</span>
-                        <span>{{ booking.address }}</span>
-                    </div>
-                    <div class="pill-row">
-                        <span class="chip chip-ghost">Durata: {{ booking.duration_minutes }} min</span>
-                        <span class="chip chip-ghost">Fara costuri afisate</span>
-                        {% if booking.dispute %}
-                            <span class="chip status-disputed">Disputa</span>
-                        {% endif %}
-                    </div>
-                    <div class="actions-row">
-                        <a class="btn-secondary" href="/bookings/{{ booking.id }}/">Detalii</a>
-                        <a class="btn-ghost" href="/bookings/{{ booking.id }}/reschedule/">Reprogrameaza</a>
+                    <div class="field">
+                        <label for="booking-sort" class="label">Sortare</label>
+                        <select id="booking-sort">
+                            <option value="desc">Cele mai noi</option>
+                            <option value="asc">Cele mai vechi</option>
+                        </select>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
+                <div class="filter-chips">
+                    <button class="chip chip-filter active" data-booking-filter="all" type="button">Toate</button>
+                    <button class="chip chip-filter" data-booking-filter="pending" type="button">In asteptare</button>
+                    <button class="chip chip-filter" data-booking-filter="confirmed" type="button">Confirmate</button>
+                    <button class="chip chip-filter" data-booking-filter="in_progress" type="button">In curs</button>
+                    <button class="chip chip-filter" data-booking-filter="completed" type="button">Finalizate</button>
+                    <button class="chip chip-filter" data-booking-filter="canceled" type="button">Anulate</button>
+                    <button class="chip chip-filter" data-booking-filter="declined" type="button">Refuzate</button>
+                    <button class="chip chip-filter" data-booking-filter="reschedule_requested" type="button">Reprogramare</button>
+                </div>
+                <div class="booking-grid" data-skeleton data-skeleton-duration="560">
+                    {% for booking in bookings %}
+                        <div class="booking-card status-{{ booking.status }}" data-tilt data-status="{{ booking.status }}" data-date="{{ booking.scheduled_start|date:"c" }}" data-search="{{ booking.service }} {{ booking.provider|default:"" }} {{ booking.address }}">
+                            <div class="booking-card__top">
+                                <div class="muted">#{{ booking.id }}</div>
+                                <span class="chip status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                                {% if booking.is_urgent %}
+                                    <span class="chip chip-ghost">Urgent: {{ booking.get_urgency_level_display }}</span>
+                                {% endif %}
+                            </div>
+                            <h3>{{ booking.service }}</h3>
+                            <p class="muted">{{ booking.description|truncatechars:180 }}</p>
+                            <div class="summary-row">
+                                <span class="label">Data</span>
+                                <span>{{ booking.scheduled_start|date:"d M H:i" }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Solicitant</span>
+                                <span>{{ booking.client.display_name }}</span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Voluntar</span>
+                                <span>{{ booking.provider|default:"-" }}
+                                    {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
+                                </span>
+                            </div>
+                            <div class="summary-row">
+                                <span class="label">Adresa</span>
+                                <span>{{ booking.address }}</span>
+                            </div>
+                            <div class="pill-row">
+                                <span class="chip chip-ghost">Durata: {{ booking.duration_minutes }} min</span>
+                                {% if booking.dispute %}
+                                    <span class="chip status-disputed">Disputa</span>
+                                {% endif %}
+                            </div>
+                            <div class="actions-row">
+                                <a class="btn-secondary" href="{% url 'bookings:detail' booking.id %}">Detalii</a>
+                                <a class="btn-ghost" href="{% url 'bookings:reschedule' booking.id %}">Reprogrameaza</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
     {% else %}
         {% include "components/_empty_state.html" with title="Nu ai cereri active inca" body="Cand trimiti prima cerere, aici vezi statusul, reprogramarile si pasii urmatori." cta_label="Cere ajutor" cta_href="/bookings/new/" %}
         <section class="section card glass section-slim" style="margin-top:16px;">

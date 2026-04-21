@@ -26,7 +26,7 @@ from .views import (
     RecurringRuleTriggerNextView,
     RecurringRuleSkipNextView,
     ProviderDashboardView,
-    ProviderEarningsCSVView,
+    ProviderActivityCSVView,
 )
 
 app_name = "bookings"
@@ -61,5 +61,5 @@ urlpatterns = [
     path("recurring/<int:pk>/next/", RecurringRuleTriggerNextView.as_view(), name="recurring_next"),
     path("recurring/<int:pk>/skip/", RecurringRuleSkipNextView.as_view(), name="recurring_skip"),
     path("provider/dashboard/", ProviderDashboardView.as_view(), name="provider_dashboard"),
-    path("provider/earnings.csv", ProviderEarningsCSVView.as_view(), name="provider_earnings_csv"),
+    path("provider/activity.csv", ProviderActivityCSVView.as_view(), name="provider_activity_csv"),
 ]

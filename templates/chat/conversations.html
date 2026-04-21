@@ -177,7 +177,7 @@
                 <div>
                     <p class="chat-aside-title">Reguli de comunicare</p>
                     <ul class="chat-rule-list muted">
-                        <li>LaUsaTa este gratuit: nu cere si nu oferi bani pentru ajutor.</li>
+                        <li>Pastreaza comunicarea in platforma pana la finalizarea cererii.</li>
                         <li>Nu partaja date bancare sau coduri.</li>
                         <li>Foloseste Raporteaza daca ceva pare in neregula.</li>
                     </ul>
@@ -188,7 +188,7 @@
         </aside>
     </div>
     {% else %}
-        {% include "components/_empty_state.html" with title="Inca nu ai conversatii" body="Discutiile apar aici dupa ce incepi un booking sau raspunzi la o cerere de ajutor." cta_label="Cere ajutor" cta_href="/bookings/new/" %}
+        {% include "components/_empty_state.html" with title="Inca nu ai conversatii" body="Discutiile apar aici dupa ce raspunzi la o cerere de ajutor." cta_label="Cere ajutor" cta_href="/bookings/new/" %}
     {% endif %}
 </section>
 

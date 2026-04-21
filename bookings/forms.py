@@ -36,6 +36,12 @@ class BookingForm(forms.ModelForm):
         required=False,
         label="Adresa salvata (optional)",
     )
+    address_query = forms.CharField(
+        required=False,
+        max_length=320,
+        label="Adresa",
+        help_text="Scrie orasul, strada si detaliile intr-o singura linie. Exemplu: Chisinau, Stefan cel Mare 10, scara B.",
+    )
     address_city = forms.CharField(required=False, max_length=128, label="Oras")
     address_line = forms.CharField(
         required=False, max_length=255, label="Adresa (strada, numar, bloc)"
@@ -119,6 +125,12 @@ class BookingForm(forms.ModelForm):
         self.fields["saved_address"].help_text = (
             "Selecteaza o adresa salvata sau completeaza manual campurile de mai jos."
         )
+        self.fields["address_query"].widget.attrs.update(
+            {
+                "placeholder": "Chisinau, Stefan cel Mare 10, scara B",
+                "autocomplete": "street-address",
+            }
+        )
         self.fields["address_city"].help_text = (
             "Orasul este folosit pentru filtrarea voluntarilor disponibili."
         )
@@ -172,6 +184,7 @@ class BookingForm(forms.ModelForm):
                     "provider",
                     "description",
                     "saved_address",
+                    "address_query",
                     "address_city",
                     "address_line",
                     "address_details",
@@ -203,6 +216,7 @@ class BookingForm(forms.ModelForm):
                 "service",
                 "provider",
                 "description",
+                "address_query",
                 "address_city",
                 "address_line",
                 "address_details",
@@ -251,6 +265,27 @@ class BookingForm(forms.ModelForm):
 
         if category and service.category_id != category.id:
             self.add_error("service", "Serviciul selectat nu apartine categoriei alese.")
+
+        address_query = (cleaned.get("address_query") or "").strip()
+        if address_query:
+            parts = [part.strip() for part in address_query.split(",") if part.strip()]
+            city = (cleaned.get("address_city") or "").strip()
+            line = (cleaned.get("address_line") or "").strip()
+            if len(parts) == 1 and not city and not line:
+                first_word, _, rest = parts[0].partition(" ")
+                if rest:
+                    cleaned["address_city"] = first_word
+                    cleaned["address_line"] = rest
+            if parts and not (cleaned.get("address_city") or "").strip():
+                cleaned["address_city"] = parts[0]
+            if len(parts) > 1 and not (cleaned.get("address_line") or "").strip():
+                cleaned["address_line"] = parts[1]
+            elif len(parts) == 1 and (cleaned.get("address_city") or "").strip() and not (
+                cleaned.get("address_line") or ""
+            ).strip():
+                cleaned["address_line"] = parts[0]
+            if len(parts) > 2 and not (cleaned.get("address_details") or "").strip():
+                cleaned["address_details"] = ", ".join(parts[2:])
 
         if self.user:
             selected = cleaned.get("saved_address")

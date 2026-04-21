@@ -3,12 +3,12 @@
 {% block content %}
 <div class="section card glass split-hero tight">
     <div>
-        <div class="badge">Colecția ta</div>
-        <h1>Servicii și voluntari salvați</h1>
-        <p class="muted">Revino rapid la serviciile preferate sau la voluntarii de încredere.</p>
+        <div class="badge">Colectia ta</div>
+        <h1>Servicii si voluntari salvati</h1>
+        <p class="muted">Revino rapid la serviciile preferate sau la voluntarii de incredere.</p>
         <div class="pill-row">
             <span class="chip chip-ghost">Shortlist personal</span>
-            <span class="chip chip-ghost">Cerere rapidă</span>
+            <span class="chip chip-ghost">Cerere rapida</span>
         </div>
     </div>
     <div class="glass-lite" style="padding:14px;border-radius:14px;">
@@ -16,7 +16,7 @@
         <div class="badge-soft">Total voluntari: {{ favorite_providers|length }}</div>
     </div>
     <div class="actions-row">
-        <a class="btn-primary" href="/services/">Adaugă servicii</a>
+        <a class="btn-primary" href="/services/">Adauga servicii</a>
     </div>
 </div>
 
@@ -30,44 +30,44 @@
     <div class="service-grid">
         {% for fav in favorite_services %}
             <div class="service-card glass">
-                <div class="chip chip-ghost">Fără cost afișat</div>
+                <div class="chip chip-ghost">Serviciu salvat</div>
                 <h3>{{ fav.service.name }}</h3>
-                <p class="muted">Adăugat: {{ fav.created_at|date:"d M Y" }}</p>
+                <p class="muted">Adaugat: {{ fav.created_at|date:"d M Y" }}</p>
                 <div class="actions-row">
                     <a class="btn-primary slim" href="/bookings/new/">Cere ajutor</a>
                     <form method="post" action="{% url 'accounts:favorite_toggle' 'service' fav.service.id %}">
                         {% csrf_token %}
-                        <button class="btn-ghost" type="submit">Șterge</button>
+                        <button class="btn-ghost" type="submit">Sterge</button>
                     </form>
                 </div>
             </div>
         {% empty %}
-            {% include "components/_empty_state.html" with icon="⭐" title="Niciun serviciu favorit" body="Apasă pe steluță din pagina unui serviciu pentru a-l salva aici." cta_label="Vezi serviciile" cta_href="/services/" %}
+            {% include "components/_empty_state.html" with title="Niciun serviciu favorit" body="Apasa pe steaua din pagina unui serviciu pentru a-l salva aici." cta_label="Vezi serviciile" cta_href="/services/" %}
         {% endfor %}
     </div>
 
     <div class="section-header">
         <div>
             <div class="badge">Voluntari</div>
-            <h2>Preferințe</h2>
+            <h2>Preferinte</h2>
         </div>
     </div>
     <div class="provider-grid">
         {% for fav in favorite_providers %}
             <div class="provider-card glass">
                 <h3>{{ fav.provider.display_name }}</h3>
-                <p class="muted">Adăugat: {{ fav.created_at|date:"d M Y" }}</p>
+                <p class="muted">Adaugat: {{ fav.created_at|date:"d M Y" }}</p>
                 <div class="actions-row">
                     <a class="btn-primary slim" href="/bookings/new/">Cere ajutor</a>
                     <a class="btn-ghost" href="/accounts/providers/{{ fav.provider.id }}/">Profil</a>
                     <form method="post" action="{% url 'accounts:favorite_toggle' 'provider' fav.provider.id %}">
                         {% csrf_token %}
-                        <button class="btn-ghost" type="submit">Șterge</button>
+                        <button class="btn-ghost" type="submit">Sterge</button>
                     </form>
                 </div>
             </div>
         {% empty %}
-            {% include "components/_empty_state.html" with icon="⭐" title="Niciun voluntar favorit" body="Salvează persoanele la care vrei să revii — le găsești aici oricând." cta_label="Caută voluntari" cta_href="/" %}
+            {% include "components/_empty_state.html" with title="Niciun voluntar favorit" body="Salveaza persoanele la care vrei sa revii. Le gasesti aici oricand." cta_label="Cauta voluntari" cta_href="/" %}
         {% endfor %}
     </div>
 </div>

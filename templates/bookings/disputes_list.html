@@ -18,7 +18,7 @@
         </div>
         <div class="field">
             <label class="label">Caută</label>
-            <input name="q" value="{{ search }}" placeholder="booking id sau motiv">
+            <input name="q" value="{{ search }}" placeholder="id cerere sau motiv">
         </div>
         <div class="actions-row">
             <button class="btn-primary" type="submit">Filtrează</button>
@@ -31,7 +31,7 @@
         {% for dispute in disputes %}
             <div class="card-neo">
                 <div class="pill-row">
-                    <span class="chip chip-ghost">Booking #{{ dispute.booking.id }}</span>
+                    <span class="chip chip-ghost">Cerere #{{ dispute.booking.id }}</span>
                     <span class="chip status-{{ dispute.status }}">{{ dispute.get_status_display }}</span>
                 </div>
                 <h3>{{ dispute.reason|default:"Fără motiv" }}</h3>

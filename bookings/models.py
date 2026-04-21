@@ -188,14 +188,14 @@ class Booking(models.Model):
                     continue
             Notification.objects.create(
                 user=user,
-                title=f"Booking #{self.pk}: {event.get_event_type_display()}",
+                title=f"Cerere #{self.pk}: {event.get_event_type_display()}",
                 body=message,
                 link=f"/bookings/{self.pk}/",
         )
         return event
 
     def __str__(self) -> str:
-        return f"Booking #{self.pk} - {self.service}"
+        return f"Cerere #{self.pk} - {self.service}"
 
 
 class RescheduleRequest(models.Model):
@@ -235,7 +235,7 @@ class RescheduleRequest(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Reschedule #{self.pk} for booking {self.booking_id}"
+        return f"Reprogramare #{self.pk} pentru cererea {self.booking_id}"
 
 
 class BookingEvent(models.Model):
@@ -315,7 +315,7 @@ class BookingDispute(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Disputa booking {self.booking_id} ({self.status})"
+        return f"Disputa cerere {self.booking_id} ({self.status})"
 
 
 class RecurringBookingRule(models.Model):
@@ -386,7 +386,7 @@ class BookingAttachment(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Attachment {self.pk} for booking {self.booking_id}"
+        return f"Atasament {self.pk} pentru cererea {self.booking_id}"
 
 
 class HelpRequest(models.Model):

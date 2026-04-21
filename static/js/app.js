@@ -634,8 +634,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const expandBtn = document.getElementById("expand-booking");
   const collapseBtn = document.getElementById("collapse-booking");
   const heroBookCta = document.getElementById("hero-book-cta");
-  const heroPrice = document.getElementById("hero-price");
-  const heroService = document.getElementById("hero-service");
   const toggleCard = (state) => {
     if (!bookingCard) return;
     bookingCard.dataset.state = state;
@@ -646,12 +644,6 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     toggleCard("expanded");
     bookingCard?.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-
-  // Hero form info update (non-commercial)
-  if (heroPrice) heroPrice.textContent = "Ajutor voluntar";
-  heroService?.addEventListener("change", () => {
-    if (heroPrice) heroPrice.textContent = "Ajutor voluntar";
   });
 
   const counterEl = document.getElementById("orders-counter");

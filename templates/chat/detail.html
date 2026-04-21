@@ -18,7 +18,7 @@
           {% include "components/_badge.html" with label="Anunt: "|add:conversation.ad.title variant="ghost" %}
         {% endif %}
         {% if conversation.booking %}
-          {% include "components/_badge.html" with label="Booking #"|add:conversation.booking.id|stringformat:"s" variant="ghost" %}
+          {% include "components/_badge.html" with label="Cerere #"|add:conversation.booking.id|stringformat:"s" variant="ghost" %}
         {% endif %}
         <span class="chat-status chat-status--connecting" data-chat-status aria-live="polite">conectare…</span>
       </div>

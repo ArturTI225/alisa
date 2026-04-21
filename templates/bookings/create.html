@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Cerere nouă de ajutor{% endblock %}
+{% block title %}Cerere noua de ajutor{% endblock %}
 {% block content %}
 <div class="view help-create">
     <div class="view-header">
         <div>
-            <div class="eyebrow" style="margin-bottom:6px;">Cerere de ajutor · 4 pași</div>
+            <div class="eyebrow" style="margin-bottom:6px;">Cerere de ajutor - 4 pasi</div>
             <h1 class="view-title">Cere ajutor de la comunitate</h1>
-            <p class="view-sub">Spune-ne de ce ai nevoie. Cererea va fi publicată voluntarilor verificați din aceeași zonă.</p>
+            <p class="view-sub">Spune-ne de ce ai nevoie. Cererea va fi publicata voluntarilor disponibili din zona ta.</p>
         </div>
         <div class="view-meta">
-            <div><span class="k">vizibilitate</span> <span class="v">voluntari verificați</span></div>
-            <div><span class="k">cost</span> <span class="v">gratuit</span></div>
+            <div><span class="k">vizibilitate</span> <span class="v">voluntari disponibili</span></div>
+            <div><span class="k">raspuns</span> <span class="v">in functie de zona</span></div>
         </div>
     </div>
 
-    <ol class="help-stepper" aria-label="Pași formular">
+    <ol class="help-stepper" aria-label="Pasi formular">
         {% for s in "1234" %}
             <li class="help-stepper__item{% if forloop.counter == 1 %} is-active{% endif %}">
                 <div class="help-stepper__label">Pasul {{ forloop.counter }}</div>
-                <div class="help-stepper__name">{% if forloop.counter == 1 %}Context{% elif forloop.counter == 2 %}Detalii{% elif forloop.counter == 3 %}Când & unde{% else %}Verificare{% endif %}</div>
+                <div class="help-stepper__name">{% if forloop.counter == 1 %}Context{% elif forloop.counter == 2 %}Detalii{% elif forloop.counter == 3 %}Cand si unde{% else %}Verificare{% endif %}</div>
             </li>
         {% endfor %}
     </ol>
@@ -36,7 +36,7 @@
                 <section class="panel">
                     <div class="panel-h">
                         <div>
-                            <div class="eyebrow" style="margin-bottom:4px;">Pasul A · acces</div>
+                            <div class="eyebrow" style="margin-bottom:4px;">Pasul A - acces</div>
                             <h3>Date de contact</h3>
                         </div>
                     </div>
@@ -59,8 +59,8 @@
             <section class="panel">
                 <div class="panel-h">
                     <div>
-                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 1 · context</div>
-                        <h3>Ce fel de ajutor îți trebuie?</h3>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 1 - context</div>
+                        <h3>Ce fel de ajutor iti trebuie?</h3>
                     </div>
                 </div>
                 <div class="panel-b stack">
@@ -84,7 +84,7 @@
                         </datalist>
                         {{ form.service_suggestions|json_script:"service-meta" }}
                         <div class="hint">Alege mai intai categoria, ca sa restrangem serviciile disponibile.</div>
-                        <div class="hint">Exemplu: ajutor la cumpărături, însoțire la medic, mutat obiecte ușoare.</div>
+                        <div class="hint">Exemplu: ajutor la cumparaturi, insotire la medic, mutat obiecte usoare.</div>
                     </div>
                     <div style="display:none;">{{ form.service }}</div>
                 </div>
@@ -93,25 +93,25 @@
             <section class="panel">
                 <div class="panel-h">
                     <div>
-                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 2 · detalii</div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 2 - detalii</div>
                         <h3>Descrie cererea</h3>
                     </div>
                 </div>
                 <div class="panel-b stack">
                     <div class="field">
-                        <label for="id_description">Povestește pe scurt</label>
+                        <label for="id_description">Povesteste pe scurt</label>
                         {{ form.description }}
-                        <div class="hint">Fii specific: cât durează, ce efort e necesar, orice detaliu de acces.</div>
+                        <div class="hint">Fii specific: cat dureaza, ce efort e necesar, orice detaliu de acces.</div>
                     </div>
                     <div class="field">
-                        <label>Cât de critic este?</label>
+                        <label>Cat de critic este?</label>
                         <div class="seg urgency-seg">
                             {% for value, label in form.urgency_level.field.choices %}
                                 <button type="button" data-value="{{ value }}">{{ label }}</button>
                             {% endfor %}
                         </div>
                         <div style="display:none;">{{ form.urgency_level }}</div>
-                        <div class="hint">Cererile urgente sunt notificate imediat voluntarilor activi din zonă.</div>
+                        <div class="hint">Cererile urgente sunt evidentiate voluntarilor activi din zona.</div>
                     </div>
                     <div class="field" style="display:none;">{{ form.is_urgent }}</div>
                 </div>
@@ -120,26 +120,52 @@
             <section class="panel">
                 <div class="panel-h">
                     <div>
-                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 3 · când & unde</div>
-                        <h3>Timp și adresă</h3>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 3 - cand si unde</div>
+                        <h3>Timp si adresa</h3>
                     </div>
                 </div>
                 <div class="panel-b stack">
-                    <div class="grid-2">
-                        {% include "components/_form_field.html" with field=form.scheduled_start %}
-                        {% include "components/_form_field.html" with field=form.duration_minutes %}
+                    <div class="field">
+                        <label>Cand ai nevoie de ajutor?</label>
+                        {{ form.scheduled_start.as_hidden }}
+                        <div class="help-calendar" data-help-calendar>
+                            <div class="help-calendar__head">
+                                <button type="button" class="btn-ghost slim" data-calendar-prev>Inapoi</button>
+                                <strong data-calendar-title>Interval</strong>
+                                <button type="button" class="btn-ghost slim" data-calendar-next>Inainte</button>
+                            </div>
+                            <div class="help-calendar__days" data-calendar-days aria-label="Alege ziua"></div>
+                            <div class="help-calendar__slots" data-time-slots aria-label="Alege ora">
+                                <button type="button" data-time="08:00">08:00</button>
+                                <button type="button" data-time="10:00">10:00</button>
+                                <button type="button" data-time="12:00">12:00</button>
+                                <button type="button" data-time="14:00">14:00</button>
+                                <button type="button" data-time="16:00">16:00</button>
+                                <button type="button" data-time="18:00">18:00</button>
+                            </div>
+                            <div class="grid-2 help-calendar__manual">
+                                <label class="field">
+                                    <span class="label">Alta ora</span>
+                                    <input type="time" id="custom-time" value="10:00">
+                                </label>
+                                {% include "components/_form_field.html" with field=form.duration_minutes %}
+                            </div>
+                        </div>
+                        {% if form.scheduled_start.errors %}<div class="hint danger-text">{{ form.scheduled_start.errors|join:", " }}</div>{% endif %}
                     </div>
+
                     {% if form.saved_address %}
                         {% include "components/_form_field.html" with field=form.saved_address %}
                     {% endif %}
+                    {% include "components/_form_field.html" with field=form.address_query %}
                     <div class="grid-2">
                         {% include "components/_form_field.html" with field=form.address_city %}
                         {% include "components/_form_field.html" with field=form.address_line %}
                     </div>
                     {% include "components/_form_field.html" with field=form.address_details %}
-                    <div class="hint">Adresa exactă este vizibilă doar voluntarului după confirmare. Pe cerere se afișează doar cartierul.</div>
+                    <div class="hint">Adresa exacta este vizibila doar persoanelor implicate in cerere.</div>
                     <details class="help-create__advanced">
-                        <summary>Opțiuni avansate (opțional)</summary>
+                        <summary>Optiuni avansate (optional)</summary>
                         <div class="stack" style="margin-top:12px;">
                             {% include "components/_form_field.html" with field=form.provider %}
                         </div>
@@ -150,20 +176,20 @@
             <section class="panel">
                 <div class="panel-h">
                     <div>
-                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 4 · publicare</div>
+                        <div class="eyebrow" style="margin-bottom:4px;">Pasul 4 - publicare</div>
                         <h3>Trimite cererea</h3>
                     </div>
                 </div>
                 <div class="panel-b stack">
-                    <p class="muted">Verifică previzualizarea din dreapta. După trimitere poți urmări progresul direct din cont și din chat.</p>
+                    <p class="muted">Verifica previzualizarea din dreapta. Dupa trimitere poti urmari progresul direct din cont si din chat.</p>
                     <div class="actions-row">
                         <button class="btn primary" type="submit" data-pending-label="Se trimite cererea...">
-                            Publică cererea
+                            Publica cererea
                         </button>
                         {% if user.is_authenticated %}
                             <a class="btn ghost" href="{% url 'bookings:list' %}">Cererile mele</a>
                         {% else %}
-                            <a class="btn ghost" href="{% url 'pages:home' %}">Renunță</a>
+                            <a class="btn ghost" href="{% url 'pages:home' %}">Renunta</a>
                         {% endif %}
                     </div>
                 </div>
@@ -174,27 +200,26 @@
             <div class="panel-h">
                 <div>
                     <div class="eyebrow" style="margin-bottom:4px;">Previzualizare</div>
-                    <h3 style="font-size:15px;">Cum o văd voluntarii</h3>
+                    <h3 style="font-size:15px;">Cum o vad voluntarii</h3>
                 </div>
             </div>
             <div class="panel-b">
                 <div class="help-preview-card">
                     <div class="row" style="justify-content:space-between; margin-bottom:10px;">
-                        <span class="badge accent" id="preview-category-badge">—</span>
+                        <span class="badge accent" id="preview-category-badge">categorie</span>
                         <span class="badge danger" id="preview-urgency-badge" style="display:none;">urgent</span>
                     </div>
-                    <div class="serif help-preview-card__title" id="preview-title">Titlul cererii apare aici…</div>
-                    <div class="muted help-preview-card__desc" id="preview-desc">Descrierea pe scurt…</div>
+                    <div class="serif help-preview-card__title" id="preview-title">Titlul cererii apare aici...</div>
+                    <div class="muted help-preview-card__desc" id="preview-desc">Descrierea pe scurt...</div>
                     <div class="divider" style="margin:14px 0;"></div>
                     <div class="row" style="gap:14px; font-size:12px; color:var(--ink-2);">
-                        <span class="row" style="gap:4px;"><span aria-hidden="true">🕒</span><span id="preview-when">—</span></span>
-                        <span class="row" style="gap:4px;"><span aria-hidden="true">📍</span><span id="preview-city">—</span></span>
+                        <span class="row" style="gap:4px;"><span>Ora</span><span id="preview-when">-</span></span>
+                        <span class="row" style="gap:4px;"><span>Loc</span><span id="preview-city">-</span></span>
                     </div>
                 </div>
                 <div class="help-preview-meta">
-                    <div class="kv"><dt>Durată</dt><dd id="preview-duration">—</dd></div>
-                    <div class="kv"><dt>Cost</dt><dd><b>gratuit</b> · platformă non-profit</dd></div>
-                    <div class="kv"><dt>Răspuns</dt><dd>10–60 min în funcție de oraș</dd></div>
+                    <div class="kv"><dt>Durata</dt><dd id="preview-duration">-</dd></div>
+                    <div class="kv"><dt>Raspuns</dt><dd>Depinde de oras si disponibilitatea voluntarilor</dd></div>
                 </div>
             </div>
         </aside>
@@ -207,6 +232,7 @@
     const serviceSelect = document.getElementById("id_service");
     const serviceQuery = document.getElementById("id_service_query");
     const savedAddress = document.getElementById("id_saved_address");
+    const addressQuery = document.getElementById("id_address_query");
     const cityInput = document.getElementById("id_address_city");
     const lineInput = document.getElementById("id_address_line");
     const guestCity = document.getElementById("id_guest_city");
@@ -221,6 +247,12 @@
     const startInput = document.getElementById("id_scheduled_start");
     const durationInput = document.getElementById("id_duration_minutes");
     const categoryChips = document.querySelectorAll("#category-chips .chip");
+    const calendarDays = document.querySelector("[data-calendar-days]");
+    const calendarTitle = document.querySelector("[data-calendar-title]");
+    const calendarPrev = document.querySelector("[data-calendar-prev]");
+    const calendarNext = document.querySelector("[data-calendar-next]");
+    const timeSlotButtons = document.querySelectorAll("[data-time-slots] button");
+    const customTime = document.getElementById("custom-time");
 
     const previewCategoryBadge = document.getElementById("preview-category-badge");
     const previewUrgencyBadge = document.getElementById("preview-urgency-badge");
@@ -235,6 +267,78 @@
     const categoryByServiceId = new Map(
       serviceMeta.map((item) => [String(item.id), String(item.category_id)])
     );
+
+    const pad = (value) => String(value).padStart(2, "0");
+    const isoDate = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const dateLabel = (date) => date.toLocaleDateString("ro-RO", { weekday: "short", day: "2-digit", month: "short" });
+    const monthLabel = (date) => date.toLocaleDateString("ro-RO", { month: "long", year: "numeric" });
+    const parseExistingDate = () => {
+      if (!startInput || !startInput.value) return null;
+      const parsed = new Date(startInput.value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    let calendarOffset = 0;
+    let selectedDate = parseExistingDate() || new Date(Date.now() + 24 * 60 * 60 * 1000);
+    let selectedTime = startInput?.value?.slice(11, 16) || "10:00";
+
+    const syncStartValue = () => {
+      if (!startInput || !selectedDate || !selectedTime) return;
+      startInput.value = `${isoDate(selectedDate)}T${selectedTime}`;
+      syncPreview();
+    };
+
+    const renderCalendar = () => {
+      if (!calendarDays) return;
+      calendarDays.innerHTML = "";
+      const first = new Date();
+      first.setHours(0, 0, 0, 0);
+      first.setDate(first.getDate() + calendarOffset);
+      if (calendarTitle) calendarTitle.textContent = monthLabel(first);
+      for (let i = 0; i < 14; i += 1) {
+        const day = new Date(first);
+        day.setDate(first.getDate() + i);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.date = isoDate(day);
+        button.innerHTML = `<span>${dateLabel(day)}</span>`;
+        button.classList.toggle("active", isoDate(day) === isoDate(selectedDate));
+        button.addEventListener("click", () => {
+          selectedDate = day;
+          renderCalendar();
+          syncStartValue();
+        });
+        calendarDays.appendChild(button);
+      }
+    };
+
+    const syncTimeButtons = () => {
+      timeSlotButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.time === selectedTime);
+      });
+      if (customTime && customTime.value !== selectedTime) customTime.value = selectedTime;
+    };
+
+    calendarPrev?.addEventListener("click", () => {
+      calendarOffset = Math.max(0, calendarOffset - 14);
+      renderCalendar();
+    });
+    calendarNext?.addEventListener("click", () => {
+      calendarOffset += 14;
+      renderCalendar();
+    });
+    timeSlotButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedTime = button.dataset.time || "10:00";
+        syncTimeButtons();
+        syncStartValue();
+      });
+    });
+    customTime?.addEventListener("change", () => {
+      selectedTime = customTime.value || "10:00";
+      syncTimeButtons();
+      syncStartValue();
+    });
 
     const allServiceOptions = serviceSelect
       ? Array.from(serviceSelect.options).map((option) => ({
@@ -317,6 +421,25 @@
       if (guestDetails && detailsInput) guestDetails.value = detailsInput.value;
     };
 
+    const parseAddressQuery = () => {
+      if (!addressQuery) return;
+      const parts = addressQuery.value.split(",").map((part) => part.trim()).filter(Boolean);
+      let parsedSingleLine = false;
+      if (parts.length === 1 && cityInput && lineInput && !cityInput.dataset.manualEdit && !lineInput.dataset.manualEdit) {
+        const words = parts[0].split(/\s+/);
+        if (words.length > 1) {
+          cityInput.value = words[0];
+          lineInput.value = words.slice(1).join(" ");
+          parsedSingleLine = true;
+        }
+      }
+      if (!parsedSingleLine && parts[0] && cityInput && !cityInput.dataset.manualEdit) cityInput.value = parts[0];
+      if (parts[1] && lineInput && !lineInput.dataset.manualEdit) lineInput.value = parts[1];
+      if (parts.length > 2 && detailsInput && !detailsInput.dataset.manualEdit) detailsInput.value = parts.slice(2).join(", ");
+      syncGuestAddress();
+      syncPreview();
+    };
+
     const syncPreview = () => {
       if (previewCategoryBadge && categorySelect) {
         const selected = categorySelect.options[categorySelect.selectedIndex];
@@ -328,19 +451,19 @@
       }
       if (previewTitle) {
         const typed = (serviceQuery && serviceQuery.value.trim()) || (descInput && descInput.value.trim().slice(0, 80));
-        previewTitle.textContent = typed || "Titlul cererii apare aici…";
+        previewTitle.textContent = typed || "Titlul cererii apare aici...";
       }
       if (previewDesc && descInput) {
-        previewDesc.textContent = descInput.value.trim() || "Descrierea pe scurt…";
+        previewDesc.textContent = descInput.value.trim() || "Descrierea pe scurt...";
       }
       if (previewCity && cityInput) {
-        previewCity.textContent = cityInput.value.trim() || "—";
+        previewCity.textContent = cityInput.value.trim() || "-";
       }
       if (previewWhen && startInput) {
-        previewWhen.textContent = startInput.value ? startInput.value.replace("T", " ") : "—";
+        previewWhen.textContent = startInput.value ? startInput.value.replace("T", " ") : "-";
       }
       if (previewDuration && durationInput) {
-        previewDuration.textContent = durationInput.value ? `${durationInput.value} min` : "—";
+        previewDuration.textContent = durationInput.value ? `${durationInput.value} min` : "-";
       }
     };
 
@@ -360,22 +483,30 @@
     serviceQuery?.addEventListener("blur", matchServiceFromQuery);
     serviceQuery?.addEventListener("input", syncPreview);
     descInput?.addEventListener("input", syncPreview);
-    cityInput?.addEventListener("input", () => { syncGuestAddress(); syncPreview(); });
-    lineInput?.addEventListener("input", syncGuestAddress);
-    detailsInput?.addEventListener("input", syncGuestAddress);
-    startInput?.addEventListener("input", syncPreview);
+    addressQuery?.addEventListener("input", parseAddressQuery);
+    cityInput?.addEventListener("input", () => { cityInput.dataset.manualEdit = "1"; syncGuestAddress(); syncPreview(); });
+    lineInput?.addEventListener("input", () => { lineInput.dataset.manualEdit = "1"; syncGuestAddress(); });
+    detailsInput?.addEventListener("input", () => { detailsInput.dataset.manualEdit = "1"; syncGuestAddress(); });
     durationInput?.addEventListener("input", syncPreview);
     savedAddress?.addEventListener("change", () => {
       if (!savedAddress.value) return;
+      if (addressQuery) addressQuery.value = "";
       if (cityInput) cityInput.value = "";
       if (lineInput) lineInput.value = "";
       if (detailsInput) detailsInput.value = "";
     });
-    formEl?.addEventListener("submit", syncGuestAddress);
+    formEl?.addEventListener("submit", () => {
+      parseAddressQuery();
+      syncStartValue();
+      syncGuestAddress();
+    });
 
     rebuildServiceOptions();
+    renderCalendar();
+    syncTimeButtons();
+    syncStartValue();
     if (categorySelect) selectCategoryChip(categorySelect.value);
-    syncGuestAddress();
+    parseAddressQuery();
     syncPreview();
   })();
 </script>

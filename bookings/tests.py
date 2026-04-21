@@ -120,12 +120,38 @@ class BookingUrgencyAPITests(APITestCase):
         self.assertEqual(ids[0], urgent.id)
         self.assertIn(normal.id, ids)
 
+    def test_provider_api_includes_bookings_created_by_provider_as_client(self):
+        provider_address = Address.objects.create(
+            user=self.provider,
+            label="Casa provider",
+            city="Bucharest",
+            street="Strada Provider 9",
+        )
+        own_booking = Booking.objects.create(
+            client=self.provider,
+            provider=None,
+            service=self.service,
+            address=provider_address,
+            description="Providerul cere ajutor prin API",
+            scheduled_start=timezone.now() + timedelta(days=1),
+            duration_minutes=60,
+            status=Booking.Status.PENDING,
+        )
+
+        self.client.logout()
+        self.client.login(username="provider", password="pass123")
+        resp = self.client.get(reverse("v1:booking-list"))
+
+        self.assertEqual(resp.status_code, 200)
+        ids = [item["id"] for item in resp.data["results"]]
+        self.assertIn(own_booking.id, ids)
+
 
 class BookingCreateViewTests(TestCase):
     def setUp(self):
-        category = ServiceCategory.objects.create(name="Instalatii", slug="instalatii")
+        self.category = ServiceCategory.objects.create(name="Instalatii", slug="instalatii")
         self.service = Service.objects.create(
-            category=category,
+            category=self.category,
             name="Montaj chiuveta",
             slug="montaj-chiuveta",
         )
@@ -163,6 +189,22 @@ class BookingCreateViewTests(TestCase):
 
         session_user_id = self.client.session.get("_auth_user_id")
         self.assertEqual(session_user_id, str(booking.client_id))
+
+    def test_address_query_can_fill_city_and_street(self):
+        response = self.client.post(
+            self.create_url,
+            self._payload(
+                guest_city="",
+                guest_street="",
+                guest_address_details="",
+                address_query="Bucuresti Strada Test 10",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        booking = Booking.objects.select_related("address").get()
+        self.assertEqual(booking.address.city, "Bucuresti")
+        self.assertEqual(booking.address.street, "Strada Test 10")
 
     def test_anonymous_booking_rejects_existing_email(self):
         User.objects.create_user(
@@ -213,6 +255,107 @@ class BookingCreateViewTests(TestCase):
             response,
             "Selecteaza o adresa salvata sau completeaza manual campurile de mai jos.",
         )
+
+    def test_client_help_requests_are_visible_in_my_requests(self):
+        user = User.objects.create_user(
+            username="help_client",
+            password="pass123",
+            role=User.Roles.CLIENT,
+        )
+        help_request = HelpRequest.objects.create(
+            created_by=user,
+            title="Ajutor la usa blocului",
+            description="Am nevoie de ajutor cu usa de la intrare.",
+            category=self.category,
+            city="Bucuresti",
+            urgency=HelpRequest.Urgency.MEDIUM,
+            status=HelpRequest.Status.OPEN,
+            status_history=[],
+        )
+
+        self.client.login(username="help_client", password="pass123")
+        response = self.client.get(reverse("bookings:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(help_request, response.context["help_requests"])
+        self.assertContains(response, "Ajutor la usa blocului")
+
+    def test_provider_can_see_own_client_bookings_in_my_requests(self):
+        provider = User.objects.create_user(
+            username="provider_as_client",
+            password="pass123",
+            role=User.Roles.PROVIDER,
+        )
+        address = Address.objects.create(
+            user=provider,
+            label="Acasa",
+            city="Bucuresti",
+            street="Strada Provider 1",
+        )
+        booking = Booking.objects.create(
+            client=provider,
+            provider=None,
+            service=self.service,
+            address=address,
+            description="Providerul cere ajutor pentru propria locuinta.",
+            scheduled_start=timezone.now() + timedelta(days=1),
+            duration_minutes=60,
+            status=Booking.Status.PENDING,
+        )
+
+        self.client.login(username="provider_as_client", password="pass123")
+        response = self.client.get(reverse("bookings:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(booking, list(response.context["bookings"]))
+        self.assertContains(response, "Providerul cere ajutor")
+
+    def test_provider_dashboard_shows_available_booking_and_help_request(self):
+        requester = User.objects.create_user(
+            username="dashboard_requester",
+            password="pass123",
+            role=User.Roles.CLIENT,
+        )
+        volunteer = User.objects.create_user(
+            username="dashboard_volunteer",
+            password="pass123",
+            role=User.Roles.PROVIDER,
+        )
+        address = Address.objects.create(
+            user=requester,
+            label="Acasa",
+            city="Bucuresti",
+            street="Strada Pool 10",
+        )
+        booking = Booking.objects.create(
+            client=requester,
+            provider=None,
+            service=self.service,
+            address=address,
+            description="Chiuveta curge si caut voluntar.",
+            scheduled_start=timezone.now() + timedelta(days=1),
+            duration_minutes=60,
+            status=Booking.Status.PENDING,
+        )
+        help_request = HelpRequest.objects.create(
+            created_by=requester,
+            title="Ajutor comunitar disponibil",
+            description="Am nevoie de un voluntar pentru reparatie usoara.",
+            category=self.category,
+            city="Bucuresti",
+            urgency=HelpRequest.Urgency.LOW,
+            status=HelpRequest.Status.OPEN,
+            status_history=[],
+        )
+
+        self.client.login(username="dashboard_volunteer", password="pass123")
+        response = self.client.get(reverse("bookings:provider_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(booking, list(response.context["available_bookings"]))
+        self.assertIn(help_request, list(response.context["available_help_requests"]))
+        self.assertContains(response, "Chiuveta curge")
+        self.assertContains(response, "Ajutor comunitar disponibil")
 
 
 class BookingClientDecisionWebTests(TestCase):

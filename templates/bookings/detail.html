@@ -5,7 +5,7 @@
     <div class="booking-hero__top">
         <div>
             <p class="muted">Cerere</p>
-            <h1>#{{ booking.id }} · {{ booking.service }}</h1>
+            <h1>#{{ booking.id }} - {{ booking.service }}</h1>
             <div class="chips">
                 <span class="chip status-{{ booking.status }}">Status: {{ booking.get_status_display }}</span>
                 <span class="chip chip-ghost">Voluntar: {{ booking.provider|default:"-" }}</span>
@@ -43,7 +43,7 @@
             {% if booking.accepted_at %}
             <div class="summary-row">
                 <span class="label">Acceptata de</span>
-                <span>{{ booking.accepted_by|default:"-" }} · {{ booking.accepted_at|date:"d M Y H:i" }}</span>
+                <span>{{ booking.accepted_by|default:"-" }} - {{ booking.accepted_at|date:"d M Y H:i" }}</span>
             </div>
             {% endif %}
             {% if booking.started_at %}
@@ -58,10 +58,6 @@
                 <span>{{ booking.completed_at|date:"d M Y H:i" }}</span>
             </div>
             {% endif %}
-            <div class="summary-row">
-                <span class="label">Costuri</span>
-                <span>Fără costuri afișate</span>
-            </div>
         </div>
     </div>
 
@@ -128,7 +124,6 @@
         <a class="btn-ghost" href="{% url 'bookings:repeat' booking.id %}">Replica</a>
         <a class="btn-ghost" href="{% url 'bookings:recurring_create' %}">Recurent</a>
         <a class="btn-ghost" href="{% url 'bookings:calendar_feed' %}">ICS</a>
-        <a class="btn-ghost" href="{% url 'bookings:detail' booking.id %}?invoice=1">Factura</a>
     </div>
     {% endif %}
 </div>
@@ -160,7 +155,7 @@
         </form>
     {% elif can_complete %}
         <div class="actions-row">
-        <a class="btn-primary" href="{% url 'bookings:complete' booking.id %}">Finalizeaza cererea</a>
+            <a class="btn-primary" href="{% url 'bookings:complete' booking.id %}">Finalizeaza cererea</a>
         </div>
     {% endif %}
 </div>
@@ -168,8 +163,8 @@
 
 {% if can_client_confirm %}
 <div class="section card">
-            <h2>Confirmare client</h2>
-            <p class="muted">Revizuiește detaliile și confirmă sau marchează disputa.</p>
+    <h2>Confirmare client</h2>
+    <p class="muted">Revizuieste detaliile si confirma sau marcheaza disputa.</p>
     <div class="actions-row">
         <form method="post" action="{% url 'bookings:client_confirm' booking.id %}">
             {% csrf_token %}
@@ -233,7 +228,7 @@
                         <span class="muted">{{ msg.created_at|date:"d M H:i" }}</span>
                     </div>
                     <div>{{ msg.text }}</div>
-                    {% if msg.attachment %}<a class="muted" href="{{ msg.attachment.url }}">Atașament</a>{% endif %}
+                    {% if msg.attachment %}<a class="muted" href="{{ msg.attachment.url }}">Atasament</a>{% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -263,9 +258,6 @@
                 <div class="booking-timeline__time">{{ event.created_at|date:"d M H:i" }}</div>
                 <div class="booking-timeline__body">
                     <div class="chip chip-ghost event-{{ event.event_type|default_if_none:'generic' }}">
-                        <span class="chip-icon">
-                            {% if event.event_type == 'reschedule_requested' %}⏳{% elif event.event_type == 'reschedule_approved' %}✅{% elif event.event_type == 'reschedule_declined' %}✖{% elif event.event_type == 'canceled' %}🛑{% elif event.event_type == 'status_changed' %}🔄{% elif event.event_type == 'accepted' %}👍{% elif event.event_type == 'declined' %}🚫{% elif event.event_type == 'dispute_opened' %}⚠{% elif event.event_type == 'dispute_resolved' %}🤝{% else %}ℹ{% endif %}
-                        </span>
                         {{ event.get_event_type_display }}
                     </div>
                     <div>{{ event.message }}</div>
@@ -280,16 +272,16 @@
 </div>
 
 <div class="section card glass">
-    <h2>Atașamente</h2>
+    <h2>Atasamente</h2>
     <div class="service-grid">
         {% for attachment in attachments %}
             <div class="service-card glass">
-                <p class="muted">{{ attachment.created_at|date:"d M Y H:i" }} · {{ attachment.uploaded_by.display_name }}</p>
-                <p>{{ attachment.note|default:"Fără notă" }}</p>
-                <a class="btn-ghost" href="{{ attachment.file.url }}">Descarcă</a>
+                <p class="muted">{{ attachment.created_at|date:"d M Y H:i" }} - {{ attachment.uploaded_by.display_name }}</p>
+                <p>{{ attachment.note|default:"Fara nota" }}</p>
+                <a class="btn-ghost" href="{{ attachment.file.url }}">Descarca</a>
             </div>
         {% empty %}
-            <p class="muted">Niciun fișier încă.</p>
+            <p class="muted">Niciun fisier inca.</p>
         {% endfor %}
     </div>
     {% if user == booking.client or user == booking.provider %}
@@ -312,6 +304,3 @@
     {% endif %}
 </div>
 {% endblock %}
-                <span class="label">Costuri</span>
-                <span>Fără costuri afișate</span>
-            </div>

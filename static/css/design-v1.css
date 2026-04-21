@@ -1007,6 +1007,66 @@ summary:focus-visible, [tabindex]:focus-visible {
 
 .chip-row { gap: calc(var(--u) * 2); }
 
+.help-calendar {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-2);
+  background: var(--paper-2);
+  padding: calc(var(--u) * 4);
+  display: grid;
+  gap: calc(var(--u) * 3);
+}
+.help-calendar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 3);
+}
+.help-calendar__head strong {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.help-calendar__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(var(--u) * 1.5);
+}
+.help-calendar__days button,
+.help-calendar__slots button {
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  color: var(--ink-2);
+  border-radius: var(--r-2);
+  padding: calc(var(--u) * 2);
+  font: inherit;
+  cursor: pointer;
+}
+.help-calendar__days button {
+  min-height: 48px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.help-calendar__days button.active,
+.help-calendar__slots button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.help-calendar__slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: calc(var(--u) * 1.5);
+}
+.help-calendar__manual {
+  align-items: end;
+}
+@media (max-width: 760px) {
+  .help-calendar__days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .help-calendar__slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 .help-preview-card {
   background: var(--paper-2);
   border: 1px solid var(--rule);

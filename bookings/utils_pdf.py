@@ -3,8 +3,8 @@ import io
 from django.template.loader import render_to_string
 
 
-def render_invoice_html(context):
-    return render_to_string("bookings/invoice.html", context)
+def render_certificate_html(context):
+    return render_to_string("bookings/certificate.html", context)
 
 
 def generate_pdf_from_html(html: str) -> bytes:

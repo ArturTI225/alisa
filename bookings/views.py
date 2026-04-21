@@ -29,6 +29,7 @@ from django.core.cache import cache
 
 from accounts.models import Address, User, Badge, Notification
 from accounts.utils import notify_user, log_audit
+from chat.models import Conversation
 from services.models import Service, ServiceCategory
 from .utils_pdf import generate_pdf_from_html
 from reviews.models import Review
@@ -197,9 +198,12 @@ class BookingListView(LoginRequiredMixin, generic.ListView):
     def get_queryset(self):
         user = self.request.user
         if getattr(user, "is_provider", False):
-            qs = Booking.objects.filter(provider=user).select_related(
+            qs = Booking.objects.filter(
+                models.Q(provider=user) | models.Q(client=user)
+            ).select_related(
                 "service",
                 "client",
+                "provider",
                 "address",
                 "accepted_by",
                 "dispute__opened_by",
@@ -224,6 +228,37 @@ class BookingListView(LoginRequiredMixin, generic.ListView):
                 "reschedule_requests__responded_by",
             )
         return qs.order_by("-is_urgent", "-created_at")
+
+    def get_help_requests_queryset(self):
+        user = self.request.user
+        qs = (
+            HelpRequest.objects.filter(is_deleted=False)
+            .select_related("category", "created_by", "matched_volunteer")
+            .prefetch_related("applications__volunteer")
+        )
+        if getattr(user, "is_provider", False):
+            qs = qs.filter(
+                models.Q(created_by=user)
+                | models.Q(matched_volunteer=user)
+                | models.Q(applications__volunteer=user)
+            ).distinct()
+        else:
+            qs = qs.filter(created_by=user)
+        return qs.order_by("-updated_at", "-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        help_requests = list(self.get_help_requests_queryset()[:50])
+        conversation_map = dict(
+            Conversation.objects.filter(help_request__in=help_requests).values_list(
+                "help_request_id", "id"
+            )
+        )
+        for help_request in help_requests:
+            help_request.chat_conversation_id = conversation_map.get(help_request.id)
+        ctx["help_requests"] = help_requests
+        ctx["request_total"] = len(ctx.get("bookings", [])) + len(help_requests)
+        return ctx
 
 
 class BookingCreateView(generic.CreateView):
@@ -1190,6 +1225,33 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
             .select_related("service", "client", "address")
             .order_by("scheduled_start")[:10]
         )
+        available_bookings = (
+            Booking.objects.filter(
+                status__in=[
+                    Booking.Status.PENDING,
+                    Booking.Status.RESCHEDULE_REQUESTED,
+                ]
+            )
+            .filter(models.Q(provider__isnull=True) | models.Q(provider=user))
+            .exclude(client=user)
+            .select_related("service", "service__category", "client", "address")
+            .order_by("-created_at")[:20]
+        )
+        available_help_request_qs = (
+            HelpRequest.objects.filter(
+                is_deleted=False,
+                status__in=[HelpRequest.Status.OPEN, HelpRequest.Status.IN_REVIEW],
+            )
+            .exclude(created_by=user)
+            .select_related("category", "created_by")
+            .order_by("-created_at")
+        )
+        applied_help_request_ids = set(
+            VolunteerApplication.objects.filter(
+                volunteer=user,
+                help_request__in=available_help_request_qs,
+            ).values_list("help_request_id", flat=True)
+        )
         disputes = (
             BookingDispute.objects.filter(
                 models.Q(assigned_to=user)
@@ -1229,6 +1291,9 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
         ctx.update(
             {
                 "upcoming": upcoming,
+                "available_bookings": available_bookings,
+                "available_help_requests": available_help_request_qs[:20],
+                "applied_help_request_ids": applied_help_request_ids,
                 "open_disputes": disputes,
                 "recurring_rules": recurring,
                 "provider_stats": stats,
@@ -1237,7 +1302,7 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
         return ctx
 
 
-class ProviderEarningsCSVView(LoginRequiredMixin, View):
+class ProviderActivityCSVView(LoginRequiredMixin, View):
     def get(self, request):
         user = request.user
         if not getattr(user, "is_provider", False):
@@ -1271,17 +1336,16 @@ class ProviderEarningsCSVView(LoginRequiredMixin, View):
         response = HttpResponse(content_type="text/csv")
         response[
             "Content-Disposition"
-        ] = f'attachment; filename="earnings_{user.username}.csv"'
+        ] = f'attachment; filename="cereri_{user.username}.csv"'
         writer = csv.writer(response)
         writer.writerow(
             [
-                "Booking ID",
+                "Cerere ID",
                 "Status",
                 "Start",
                 "Service",
                 "Client",
-                "Estimated",
-                "Final",
+                "Durata minute",
             ]
         )
         for b in qs:
@@ -1294,6 +1358,7 @@ class ProviderEarningsCSVView(LoginRequiredMixin, View):
                     ),
                     b.service.name,
                     b.client.display_name,
+                    b.duration_minutes,
                 ]
             )
         return response
@@ -1419,8 +1484,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         user = self.request.user
         params = self.request.query_params
         if getattr(user, "is_provider", False):
-            qs = Booking.objects.filter(provider=user).select_related(
-                "service", "client", "address"
+            qs = Booking.objects.filter(
+                models.Q(provider=user) | models.Q(client=user)
+            ).select_related(
+                "service", "client", "provider", "address"
             )
         else:
             qs = Booking.objects.filter(client=user).select_related(
@@ -2005,13 +2072,13 @@ class BookingViewSet(viewsets.ModelViewSet):
             BookingSerializer(booking, context=self.get_serializer_context()).data
         )
 
-    @action(detail=True, methods=["get"], url_path="invoice")
-    def invoice(self, request, pk=None):
+    @action(detail=True, methods=["get"], url_path="certificate")
+    def certificate(self, request, pk=None):
         booking = self.get_object()
         if request.user not in [booking.client, booking.provider]:
-            raise PermissionDenied("Nu ai acces la aceasta factura.")
+            raise PermissionDenied("Nu ai acces la acest certificat.")
         html = render_to_string(
-            "bookings/invoice.html",
+            "bookings/certificate.html",
             {"booking": booking},
             request=request,
         )
@@ -2020,7 +2087,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             response = HttpResponse(pdf_bytes, content_type="application/pdf")
             response[
                 "Content-Disposition"
-            ] = f'attachment; filename="booking_{booking.pk}.pdf"'
+            ] = f'attachment; filename="cerere_{booking.pk}_certificat.pdf"'
             return response
         except Exception:
             return HttpResponse(html)

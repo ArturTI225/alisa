@@ -8,9 +8,6 @@
         .badge { padding: 6px 10px; background: #1e40af; color: #f8fafc; border-radius: 4px; font-weight: 600; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
         h1 { margin: 10px 0 4px; font-family: "IBM Plex Serif", Georgia, serif; font-weight: 500; letter-spacing: -0.01em; }
         .muted { color: #64748b; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e2e8f0; }
-        th { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -21,25 +18,13 @@
             <p class="muted">Emis la {{ booking.completed_at|default:booking.created_at|date:"d M Y, H:i" }}</p>
         </div>
         <div style="text-align:right;">
-            <p><strong>LaUsaTa</strong><br/>Proiect comunitar non-profit</p>
+            <p><strong>LaUsaTa</strong><br/>Proiect comunitar</p>
         </div>
     </div>
     <p><strong>Beneficiar:</strong> {{ booking.client.display_name }}</p>
     <p><strong>Voluntar:</strong> {{ booking.provider|default:"-" }}</p>
     <p><strong>Tip de ajutor:</strong> {{ booking.service }}</p>
     <p><strong>Adresa:</strong> {{ booking.address }}</p>
-
-    <table>
-        <tr>
-            <th>Descriere</th>
-            <th>Valoare</th>
-        </tr>
-        <tr>
-            <td>Ajutor oferit prin comunitatea LaUsaTa</td>
-            <td>Gratuit · fără costuri</td>
-        </tr>
-    </table>
-
-    <p class="muted" style="margin-top:24px; font-size: 12px;">LaUsaTa este o platformă comunitară non-comercială. Nu se percep taxe sau comisioane; voluntarii nu primesc plată pentru ajutorul oferit.</p>
+    <p><strong>Descriere:</strong> {{ booking.description }}</p>
 </body>
 </html>
