@@ -43,7 +43,7 @@ class SignupForm(UserCreationForm):
     role = forms.ChoiceField(
         choices=[
             (User.Roles.CLIENT, "Client"),
-            (User.Roles.PROVIDER, "Worker"),
+            (User.Roles.PROVIDER, "Prestator"),
         ],
         label="Tip cont",
         widget=forms.RadioSelect(attrs={"class": "role-choice__input"}),
@@ -112,8 +112,8 @@ class NotificationPreferenceForm(forms.ModelForm):
             "Notificari pentru conversatiile active din platforma.",
         ),
         "bids": (
-            "Aplicatii si raspunsuri",
-            "Mesaje despre aplicatii noi si deciziile luate pe ele.",
+            "Raspunsuri la cereri",
+            "Mesaje despre raspunsuri noi si deciziile luate pe ele.",
         ),
         "urgent_ads": (
             "Cereri urgente din apropiere",

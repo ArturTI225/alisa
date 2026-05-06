@@ -7,7 +7,7 @@
     <div class="hero-copy home-fin-hero__copy">
         <div class="badge badge-glow">Comunitate, incredere, sprijin</div>
         <h1>Gasesti ajutor de incredere<br>direct la usa ta</h1>
-        <p class="muted">Platforma conecteaza solicitanti si voluntari verificati. Publici cererea de ajutor, primesti aplicatii si urmaresti progresul in timp real.</p>
+        <p class="muted">Platforma conecteaza solicitanti si prestatori verificati. Publici cererea de ajutor, primesti raspunsuri si urmaresti progresul in timp real.</p>
         <div class="actions-row home-fin-hero__actions">
             <a class="btn-primary" href="/bookings/new/">Cere ajutor</a>
             <a class="btn-secondary" href="/services/">Vezi categorii</a>
@@ -15,7 +15,7 @@
         <div class="home-fin-hero__meta">
             <span class="pill-tag">{{ categories|length }} categorii active</span>
             <span class="pill-tag pill-tag-ghost">{{ featured_services|length }} tipuri de ajutor</span>
-            <span class="pill-tag">{{ top_providers|length }} voluntari verificati</span>
+            <span class="pill-tag">{{ top_providers|length }} prestatori verificati</span>
         </div>
         <div class="home-fin-hero__partners">
             <span class="home-fin-hero__partners-label">Au &#238;ncredere &#238;n noi</span>
@@ -80,7 +80,7 @@
             <div class="home-fin-growth__item">
                 <div class="icon-bubble">2</div>
                 <h3>Potrivire transparenta</h3>
-                <p class="muted">Voluntarii verificati si disponibili aplica direct la cerere.</p>
+                <p class="muted">Prestatorii verificati si disponibili raspund direct la cerere.</p>
             </div>
             <div class="home-fin-growth__item">
                 <div class="icon-bubble">3</div>
@@ -95,19 +95,19 @@
     <article class="card home-fin-prefer__left">
         <div class="badge">De ce ne aleg</div>
         <div class="home-fin-prefer__value">{{ top_providers|length }}+</div>
-        <h3>Voluntari de incredere gata sa ajute</h3>
-        <p class="muted">Fiecare voluntar activ este verificat si evaluat pentru siguranta comunitatii.</p>
+        <h3>Prestatori de incredere gata sa ajute</h3>
+        <p class="muted">Fiecare prestator activ este verificat si evaluat pentru siguranta solicitantilor.</p>
     </article>
 
     <article class="card home-fin-prefer__right">
         <div class="home-fin-note-grid">
             <div class="home-fin-note">
-                <strong>Ajutor comunitar</strong>
+                <strong>Ajutor local</strong>
                 <p class="muted">Comunicare directa si transparenta in platforma.</p>
             </div>
             <div class="home-fin-note">
                 <strong>Vizibilitate instant</strong>
-                <p class="muted">Vezi imediat cand cineva aplica sau confirma.</p>
+                <p class="muted">Vezi imediat cand cineva raspunde sau confirma.</p>
             </div>
         </div>
         <div class="home-fin-chart">
@@ -129,13 +129,13 @@
         </article>
         <article class="home-fin-band__step">
             <span class="home-fin-band__index">2</span>
-            <h3>Primesti aplicatii</h3>
-            <p>Primesti aplicatii de la voluntari verificati si disponibili.</p>
+            <h3>Primesti raspunsuri</h3>
+            <p>Primesti raspunsuri de la prestatori verificati si disponibili.</p>
         </article>
         <article class="home-fin-band__step">
             <span class="home-fin-band__index">3</span>
             <h3>Confirmi si urmaresti</h3>
-            <p>Confirmi voluntarul, discutati in chat si urmaresti progresul.</p>
+            <p>Confirmi prestatorul, discutati in chat si urmaresti progresul.</p>
         </article>
     </div>
 </section>
@@ -167,7 +167,7 @@
     <article class="card">
         <header class="section-header">
             <div>
-                <div class="badge">Voluntari de top</div>
+                <div class="badge">Prestatori de top</div>
                 <h2>Alege persoana potrivita</h2>
             </div>
         </header>
@@ -182,7 +182,7 @@
                     <div class="rating-pill">Incredere {{ provider.rating_avg|default:"4.8" }}</div>
                 </div>
             {% empty %}
-                <p class="muted">Nu exista voluntari disponibili momentan.</p>
+                <p class="muted">Nu exista prestatori disponibili momentan.</p>
             {% endfor %}
         </div>
     </article>
@@ -225,8 +225,8 @@
             <a class="btn-ghost" href="/accounts/signup/">Incepe acum</a>
         </article>
         <article class="home-fin-plan home-fin-plan--featured card">
-            <h3>Voluntar</h3>
-            <p>Pentru membri care vor sa ofere ajutor si sa participe activ in comunitate.</p>
+            <h3>Prestator</h3>
+            <p>Pentru persoane verificate care vor sa raspunda la cereri locale.</p>
             <div class="home-fin-plan__note">Verificare cont</div>
             <a class="btn-primary" href="/devino-membru/">Devino membru</a>
         </article>

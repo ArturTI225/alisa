@@ -19,7 +19,7 @@ urlpatterns = [
         "api/v1/schema/",
         get_schema_view(
             title="ALISA API",
-            description="Social, non-commercial volunteer platform API schema",
+            description="Local help request platform API schema",
             version="1.0",
         ),
         name="api-schema",

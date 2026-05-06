@@ -18,11 +18,11 @@
             <p class="muted">Emis la {{ booking.completed_at|default:booking.created_at|date:"d M Y, H:i" }}</p>
         </div>
         <div style="text-align:right;">
-            <p><strong>LaUsaTa</strong><br/>Proiect comunitar</p>
+            <p><strong>LaUsaTa</strong><br/>Cerere finalizata</p>
         </div>
     </div>
     <p><strong>Beneficiar:</strong> {{ booking.client.display_name }}</p>
-    <p><strong>Voluntar:</strong> {{ booking.provider|default:"-" }}</p>
+    <p><strong>Prestator:</strong> {{ booking.provider|default:"-" }}</p>
     <p><strong>Tip de ajutor:</strong> {{ booking.service }}</p>
     <p><strong>Adresa:</strong> {{ booking.address }}</p>
     <p><strong>Descriere:</strong> {{ booking.description }}</p>

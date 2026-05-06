@@ -70,7 +70,7 @@ class BookingForm(forms.ModelForm):
     provider = forms.ModelChoiceField(
         queryset=User.objects.none(),
         required=False,
-        label="Alege voluntar (optional)",
+        label="Alege prestator (optional)",
     )
 
     class Meta:
@@ -114,11 +114,11 @@ class BookingForm(forms.ModelForm):
         )
         self.fields["scheduled_start"].label = "Cand ai nevoie de ajutor?"
         self.fields["scheduled_start"].help_text = (
-            "Alege un interval realist, ca sa gasim mai usor un voluntar disponibil."
+            "Alege un interval realist, ca sa gasim mai usor un prestator disponibil."
         )
         self.fields["duration_minutes"].label = "Durata estimata (minute)"
         self.fields["duration_minutes"].help_text = (
-            "Ne ajuta sa evitam suprapuneri si sa gasim voluntarul potrivit."
+            "Ne ajuta sa evitam suprapuneri si sa gasim prestatorul potrivit."
         )
         self.fields["provider"].help_text = "Lasa gol daca vrei asignare automata."
         self.fields["saved_address"].empty_label = "Scriu o adresa noua"
@@ -132,7 +132,7 @@ class BookingForm(forms.ModelForm):
             }
         )
         self.fields["address_city"].help_text = (
-            "Orasul este folosit pentru filtrarea voluntarilor disponibili."
+            "Orasul este folosit pentru filtrarea prestatorilor disponibili."
         )
         self.fields["address_line"].help_text = (
             "Include strada, numarul si orice reper important."

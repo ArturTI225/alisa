@@ -15,7 +15,6 @@
 - Commands + results:
 
 ## Checklist
-- [ ] Non-commercial guardrails respected (no payments/monetization)
 - [ ] State machine transitions validated
 - [ ] Permissions enforced (RBAC + object-level)
 - [ ] Audit logs added where sensitive

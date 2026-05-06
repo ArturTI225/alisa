@@ -21,7 +21,7 @@ THROTTLE_SETTINGS = deepcopy(settings.REST_FRAMEWORK)
 THROTTLE_SETTINGS["DEFAULT_THROTTLE_RATES"] = {
     **THROTTLE_SETTINGS.get("DEFAULT_THROTTLE_RATES", {}),
     "help-requests": "1/minute",
-    "volunteer-applications": "30/minute",
+    "provider-applications": "30/minute",
     "user": "2/minute",
     "anon": "50/minute",
 }
@@ -280,6 +280,46 @@ class BookingCreateViewTests(TestCase):
         self.assertIn(help_request, response.context["help_requests"])
         self.assertContains(response, "Ajutor la usa blocului")
 
+    def test_client_can_choose_pending_master_from_my_requests(self):
+        user = User.objects.create_user(
+            username="choice_client",
+            password="pass123",
+            role=User.Roles.CLIENT,
+        )
+        master = User.objects.create_user(
+            username="choice_master",
+            password="pass123",
+            role=User.Roles.PROVIDER,
+            rating_avg=4.75,
+            rating_count=3,
+        )
+        help_request = HelpRequest.objects.create(
+            created_by=user,
+            title="Ajutor pentru usa",
+            description="Am nevoie de ajutor cu usa de la intrare.",
+            category=self.category,
+            city="Bucuresti",
+            urgency=HelpRequest.Urgency.MEDIUM,
+            status=HelpRequest.Status.OPEN,
+            status_history=[],
+        )
+        VolunteerApplication.objects.create(
+            help_request=help_request,
+            volunteer=master,
+            status=VolunteerApplication.Status.PENDING,
+            message="Pot veni azi.",
+        )
+
+        self.client.login(username="choice_client", password="pass123")
+        response = self.client.get(reverse("bookings:list"))
+
+        self.assertEqual(response.status_code, 200)
+        help_request_from_context = response.context["help_requests"][0]
+        self.assertEqual(help_request_from_context.pending_applications_count, 1)
+        self.assertContains(response, "Prestatori care au raspuns")
+        self.assertContains(response, "Alege prestatorul")
+        self.assertContains(response, "Rating 4,75 / 5")
+
     def test_provider_can_see_own_client_bookings_in_my_requests(self):
         provider = User.objects.create_user(
             username="provider_as_client",
@@ -316,8 +356,8 @@ class BookingCreateViewTests(TestCase):
             password="pass123",
             role=User.Roles.CLIENT,
         )
-        volunteer = User.objects.create_user(
-            username="dashboard_volunteer",
+        master = User.objects.create_user(
+            username="dashboard_master",
             password="pass123",
             role=User.Roles.PROVIDER,
         )
@@ -332,7 +372,7 @@ class BookingCreateViewTests(TestCase):
             provider=None,
             service=self.service,
             address=address,
-            description="Chiuveta curge si caut voluntar.",
+            description="Chiuveta curge si caut prestator.",
             scheduled_start=timezone.now() + timedelta(days=1),
             duration_minutes=60,
             status=Booking.Status.PENDING,
@@ -340,7 +380,7 @@ class BookingCreateViewTests(TestCase):
         help_request = HelpRequest.objects.create(
             created_by=requester,
             title="Ajutor comunitar disponibil",
-            description="Am nevoie de un voluntar pentru reparatie usoara.",
+            description="Am nevoie de un prestator pentru reparatie usoara.",
             category=self.category,
             city="Bucuresti",
             urgency=HelpRequest.Urgency.LOW,
@@ -348,7 +388,7 @@ class BookingCreateViewTests(TestCase):
             status_history=[],
         )
 
-        self.client.login(username="dashboard_volunteer", password="pass123")
+        self.client.login(username="dashboard_master", password="pass123")
         response = self.client.get(reverse("bookings:provider_dashboard"))
 
         self.assertEqual(response.status_code, 200)
@@ -584,7 +624,7 @@ class BookingAcceptChatMessageWebTests(TestCase):
             sender=self.provider,
         ).order_by("-created_at").first()
         self.assertIsNotNone(msg)
-        self.assertEqual(msg.text, "Voluntarul a acceptat cererea de ajutor.")
+        self.assertEqual(msg.text, "Prestatorul a acceptat cererea de ajutor.")
 
         self.assertTrue(
             Notification.objects.filter(
@@ -603,7 +643,7 @@ class HelpRequestFlowAPITests(APITestCase):
         self.volunteer = User.objects.create_user(
             username="volunteer2", password="pass123", role=User.Roles.PROVIDER, is_verified=True
         )
-        category = ServiceCategory.objects.create(name="Voluntariat", slug="voluntariat")
+        category = ServiceCategory.objects.create(name="Servicii locale", slug="servicii-locale")
         self.category = category
 
     def _prepare_help_request_for_completion(self) -> int:
@@ -626,7 +666,7 @@ class HelpRequestFlowAPITests(APITestCase):
 
         self.client.login(username="volunteer2", password="pass123")
         app_resp = self.client.post(
-            reverse("v1:volunteer-application-list"),
+            reverse("v1:provider-application-list"),
             {"help_request": help_request_id, "message": "Pot ajuta."},
             format="json",
         )
@@ -635,7 +675,7 @@ class HelpRequestFlowAPITests(APITestCase):
         self.client.logout()
 
         self.client.login(username="client2", password="pass123")
-        accept_resp = self.client.post(reverse("v1:volunteer-application-accept", args=[app_id]))
+        accept_resp = self.client.post(reverse("v1:provider-application-accept", args=[app_id]))
         self.assertEqual(accept_resp.status_code, 200)
         self.client.logout()
 
@@ -665,10 +705,10 @@ class HelpRequestFlowAPITests(APITestCase):
         help_request_id = resp.data["id"]
         self.client.logout()
 
-        # volunteer applies
+        # master responds
         self.client.login(username="volunteer2", password="pass123")
         resp = self.client.post(
-            reverse("v1:volunteer-application-list"),
+            reverse("v1:provider-application-list"),
             {"help_request": help_request_id, "message": "Pot ajuta."},
             format="json",
         )
@@ -678,7 +718,7 @@ class HelpRequestFlowAPITests(APITestCase):
 
         # client accepts
         self.client.login(username="client2", password="pass123")
-        resp = self.client.post(reverse("v1:volunteer-application-accept", args=[app_id]))
+        resp = self.client.post(reverse("v1:provider-application-accept", args=[app_id]))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["status"], VolunteerApplication.Status.ACCEPTED)
         conversation = Conversation.objects.filter(help_request_id=help_request_id).first()
@@ -687,7 +727,7 @@ class HelpRequestFlowAPITests(APITestCase):
         self.assertEqual(participants, {self.client_user.id, self.volunteer.id})
         self.client.logout()
 
-        # volunteer starts and completes
+        # master starts and completes
         self.client.login(username="volunteer2", password="pass123")
         start_resp = self.client.post(reverse("v1:help-request-start", args=[help_request_id]))
         self.assertEqual(start_resp.status_code, 200)
@@ -697,7 +737,7 @@ class HelpRequestFlowAPITests(APITestCase):
         self.assertEqual(done_resp.status_code, 200)
         self.assertEqual(done_resp.data["status"], HelpRequest.Status.DONE)
 
-        # volunteer can fetch certificate
+        # master can fetch certificate
         cert_resp = self.client.get(reverse("v1:help-request-certificate", args=[help_request_id]))
         self.assertEqual(cert_resp.status_code, 200)
         self.assertIn("pdf_url", cert_resp.data)
@@ -792,10 +832,10 @@ class HelpRequestFlowAPITests(APITestCase):
         self.assertEqual(approve.data["status"], HelpRequest.Status.OPEN)
         self.client.logout()
 
-        # volunteer applies
+        # master responds
         self.client.login(username="volunteer2", password="pass123")
         app_resp = self.client.post(
-            reverse("v1:volunteer-application-list"),
+            reverse("v1:provider-application-list"),
             {"help_request": help_request_id, "message": "Pot ajuta rapid."},
             format="json",
         )
@@ -805,11 +845,11 @@ class HelpRequestFlowAPITests(APITestCase):
 
         # client accepts
         self.client.login(username="client2", password="pass123")
-        acc_resp = self.client.post(reverse("v1:volunteer-application-accept", args=[app_id]))
+        acc_resp = self.client.post(reverse("v1:provider-application-accept", args=[app_id]))
         self.assertEqual(acc_resp.status_code, 200)
         self.client.logout()
 
-        # volunteer starts and completes
+        # master starts and completes
         self.client.login(username="volunteer2", password="pass123")
         self.assertEqual(self.client.post(reverse("v1:help-request-start", args=[help_request_id])).status_code, 200)
         self.assertEqual(self.client.post(reverse("v1:help-request-complete", args=[help_request_id])).status_code, 200)
@@ -923,10 +963,10 @@ class AbusePreventionTests(APITestCase):
         self.assertEqual(blocked_create.status_code, 403)
         self.client.logout()
 
-        # blocked volunteer cannot apply
+        # blocked master cannot respond
         self.client.login(username="blocked_volunteer", password="pass123")
         apply_resp = self.client.post(
-            reverse("v1:volunteer-application-list"),
+            reverse("v1:provider-application-list"),
             {"help_request": help_request_id, "message": "Nu ar trebui sa fie permis."},
             format="json",
         )

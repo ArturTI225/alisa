@@ -6,7 +6,7 @@
         <div>
             <p class="civic-eyebrow">Astăzi · {% now "d M Y" %} · ora {% now "H:i" %}</p>
             <h1>Bună dimineața, {{ user.first_name|default:user.display_name }}.</h1>
-            <p class="muted">Astăzi la ora 10:00 vine voluntarul să te ajute. Poți să-i scrii oricând dacă ai întrebări.</p>
+            <p class="muted">Cand alegi un prestator pentru o cerere, aici vezi urmatorul pas si chatul asociat.</p>
         </div>
     </header>
 
@@ -17,7 +17,7 @@
                 {% if pinned and pinned.matched_volunteer %}
                     {{ pinned.matched_volunteer.display_name|first|upper }}
                 {% else %}
-                    V
+                    M
                 {% endif %}
             </div>
             <div>
@@ -26,7 +26,7 @@
                     {% if pinned and pinned.matched_volunteer %}
                         {{ pinned.matched_volunteer.display_name }} vine la tine
                     {% else %}
-                        Voluntarul vine la tine
+                        Prestatorul vine la tine
                     {% endif %}
                 </h2>
                 <p class="muted">
@@ -52,21 +52,21 @@
         <a class="card home-beneficiary-actions__card" href="{% url 'bookings:create' %}">
             <div class="home-beneficiary-actions__icon">+</div>
             <h2>Am nevoie de ajutor cu altceva</h2>
-            <p class="muted">Spui cu ce ai nevoie, primești aplicații de la voluntari verificați și alegi pe cine cunoști.</p>
+            <p class="muted">Spui cu ce ai nevoie, primesti raspunsuri de la prestatori verificati si alegi persoana potrivita.</p>
         </a>
 
         <a class="card home-beneficiary-actions__card" href="{% url 'pages:applications' %}">
-            <div class="home-beneficiary-actions__badge badge">{{ client_requests|length }} aplicații noi</div>
+            <div class="home-beneficiary-actions__badge badge">{{ client_requests|length }} cereri</div>
             <div class="home-beneficiary-actions__icon">&#9673;</div>
             <h2>Văd cine vrea să mă ajute</h2>
-            <p class="muted">Voluntarii care au răspuns apar mai jos. Uită-te pe rând, fără grabă.</p>
+            <p class="muted">Prestatorii care au raspuns apar mai jos. Verifica ratingul si alege direct din lista.</p>
         </a>
     </div>
 
     <article class="card home-beneficiary-safe">
         <div>
             <p class="civic-eyebrow">Ești în siguranță</p>
-            <p class="muted">Toți voluntarii sunt verificați. Poți apăsa butonul Ajutor acum din bara de sus oricând ai nevoie.</p>
+            <p class="muted">Prestatorii sunt verificati in platforma. Poti apasa butonul Ajutor acum din bara de sus oricand ai nevoie.</p>
         </div>
         <a class="btn-secondary" href="{% url 'accounts:profile' %}">Persoanele mele de încredere</a>
     </article>
@@ -74,8 +74,8 @@
     <section class="section" id="applications">
         <header class="section-header">
             <div>
-                <div class="badge">Aplicații primite</div>
-                <h2>Cine m-a ajutat</h2>
+                <div class="badge">Raspunsuri primite</div>
+                <h2>Alege un prestator</h2>
             </div>
         </header>
         <div class="booking-grid"{% if client_requests %} data-skeleton data-skeleton-duration="560"{% endif %}>
@@ -86,17 +86,18 @@
                             <article class="booking-card civic-application-card">
                                 <div class="booking-card__top">
                                     <strong>{{ app.volunteer.display_name }}</strong>
-                                    <span class="chip chip-ghost">{{ app.status }}</span>
+                                    <span class="chip chip-ghost">Rating {{ app.volunteer.rating_avg|default:"0.00" }} / 5</span>
                                 </div>
                                 <p class="muted">Cerere: #{{ req.id }} · {{ req.title }}</p>
-                                <p>{{ app.message|default:"Vreau să te ajut cu această cerere." }}</p>
+                                <p class="muted">{{ app.volunteer.rating_count }} recenzii · {{ app.message|default:"Pot prelua aceasta cerere." }}</p>
                                 <div class="actions-row">
                                     <form method="post" action="{% url 'pages:application_accept' app.id %}">
                                         {% csrf_token %}
-                                        <button class="btn-primary" type="submit" data-pending-label="Se confirmă...">Da, vreau să mă ajute</button>
+                                        <button class="btn-primary" type="submit" data-pending-label="Se confirma...">Alege prestatorul</button>
                                     </form>
+                                    <a class="btn-ghost" href="{% url 'accounts:provider_detail' app.volunteer.id %}">Profil</a>
                                     {% if req.chat_conversation_id %}
-                                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Vreau să-i scriu</a>
+                                        <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Scrie mesaj</a>
                                     {% endif %}
                                 </div>
                             </article>
@@ -104,7 +105,7 @@
                     {% endfor %}
                 {% endif %}
             {% empty %}
-                {% include "components/_empty_state.html" with title="Încă nu ai aplicații" body="După publicare, voluntarii disponibili vor apărea aici." %}
+                {% include "components/_empty_state.html" with title="Inca nu ai raspunsuri" body="Dupa publicare, prestatorii disponibili vor aparea aici." %}
             {% endfor %}
         </div>
     </section>

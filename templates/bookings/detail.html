@@ -8,7 +8,7 @@
             <h1>#{{ booking.id }} - {{ booking.service }}</h1>
             <div class="chips">
                 <span class="chip status-{{ booking.status }}">Status: {{ booking.get_status_display }}</span>
-                <span class="chip chip-ghost">Voluntar: {{ booking.provider|default:"-" }}</span>
+                <span class="chip chip-ghost">Prestator: {{ booking.provider|default:"-" }}</span>
                 {% if booking.is_urgent %}
                     <span class="chip chip-ghost">Urgenta: {{ booking.get_urgency_level_display }}</span>
                 {% endif %}
@@ -81,7 +81,7 @@
                 <div class="dot"></div>
                 <div>
                     <div class="step-title">Confirmata</div>
-                    <div class="muted">Voluntarul a acceptat</div>
+                    <div class="muted">Prestatorul a acceptat</div>
                 </div>
             </div>
             <div class="progress-step {% if booking.status in 'in_progress awaiting_client completed' %}active{% endif %} {% if booking.status in 'awaiting_client completed' %}done{% endif %}">
@@ -111,7 +111,7 @@
         {% elif booking.status == 'canceled' %}
             <p class="muted" style="margin-top:8px;">Cererea a fost anulata.</p>
         {% elif booking.status == 'declined' %}
-            <p class="muted" style="margin-top:8px;">Cererea a fost refuzata de voluntar.</p>
+            <p class="muted" style="margin-top:8px;">Cererea a fost refuzata de prestator.</p>
         {% elif booking.status == 'awaiting_client' %}
             <p class="muted" style="margin-top:8px;">Asteptam confirmarea clientului pentru finalizare.</p>
         {% endif %}
@@ -130,7 +130,7 @@
 
 {% if can_provider_decide %}
 <div class="section card">
-    <h2>Confirmare voluntar</h2>
+    <h2>Confirmare prestator</h2>
     <p class="muted">Esti asignat la aceasta cerere. Confirma sau respinge.</p>
     <div class="actions-row">
         <form method="post" action="{% url 'bookings:accept' booking.id %}">

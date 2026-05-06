@@ -1,6 +1,6 @@
 # LaUsaTa
 
-LaUsaTa este o platforma comunitara pentru cereri de ajutor, voluntariat si servicii locale.
+LaUsaTa este o platforma pentru cereri de ajutor si servicii locale cu prestatori verificati.
 Proiectul este construit in Django 5, cu API REST, WebSockets, dashboard-uri dedicate pentru provideri si fluxuri complete pentru help requests si bookings programate.
 
 ## Ce include versiunea curenta
@@ -9,7 +9,7 @@ Proiectul este construit in Django 5, cu API REST, WebSockets, dashboard-uri ded
 - pagini home diferite in functie de rol
 - catalog de servicii si profiluri de provider
 - favorite pentru servicii si provideri
-- flux complet help request: creare, aplicare, acceptare, start, finalizare, moderare
+- flux complet help request: creare, raspunsuri, selectie prestator, start, finalizare, moderare
 - flux complet bookings programate: creare, accept/decline, reprogramare, start, finalizare, confirmare/disputa
 - booking attachments, reguli recurente, calendar feed ICS, export activitate CSV
 - dashboard provider cu statistici si activitate
@@ -22,7 +22,7 @@ Proiectul este construit in Django 5, cu API REST, WebSockets, dashboard-uri ded
 
 Pe scurt, nu sunt acelasi lucru. Platforma acopera doua tipuri diferite de nevoie:
 
-- Help Request = cerere de ajutor voluntar, porneste fara provider fix, cu aplicatii de la voluntari si selectie ulterioara.
+- Help Request = cerere de ajutor, porneste fara provider fix, cu raspunsuri de la prestatori si selectie ulterioara.
 - Booking = cerere programata de serviciu, orientata pe slot de timp, calendar, reprogramari si flux operational de executie.
 
 Diferente cheie:
@@ -30,14 +30,14 @@ Diferente cheie:
 - Initiere:
 Help Request este publicata de client pentru comunitate; Booking este creat ca o cerere programata cu detalii de executie (service, adresa, interval).
 - Potrivire provider:
-Help Request foloseste Volunteer Applications si apoi acceptarea unei aplicatii; Booking poate porni direct cu provider atribuit sau gasit de sistem.
+Help Request foloseste raspunsuri de la prestatori si apoi acceptarea unui raspuns; Booking poate porni direct cu provider atribuit sau gasit de sistem.
 - Flux de status:
 Help Request: open, in_review, matched, in_progress, done, cancelled.
 Booking: pending, confirmed, in_progress, awaiting_client, completed, canceled, declined, disputed, reschedule_requested.
 - Functionalitati dedicate:
 Help Request are lock/unlock de admin, moderare si certificat de completare; Booking are dispute workflow, recuring rules, calendar ICS si export CSV pentru activitate provider.
 - Scop de produs:
-Help Request acopera componenta sociala/non-comerciala de voluntariat; Booking acopera livrarea programata a serviciilor.
+Help Request acopera cererile deschise cu selectie ulterioara; Booking acopera livrarea programata a serviciilor.
 
 ## Stack tehnic
 
@@ -96,7 +96,7 @@ Resurse principale:
 - /api/v1/providers/
 - /api/v1/bookings/
 - /api/v1/help-requests/
-- /api/v1/volunteer-applications/
+- /api/v1/provider-applications/
 - /api/v1/conversations/
 - /api/v1/chat-messages/
 - /api/v1/reviews/
@@ -121,9 +121,9 @@ Actiuni custom importante:
 - POST /api/v1/help-requests/{id}/lock/
 - POST /api/v1/help-requests/{id}/unlock/
 - GET /api/v1/help-requests/{id}/certificate/
-- POST /api/v1/volunteer-applications/{id}/accept/
-- POST /api/v1/volunteer-applications/{id}/reject/
-- POST /api/v1/volunteer-applications/{id}/withdraw/
+- POST /api/v1/provider-applications/{id}/accept/
+- POST /api/v1/provider-applications/{id}/reject/
+- POST /api/v1/provider-applications/{id}/withdraw/
 
 Compatibilitate temporara:
 

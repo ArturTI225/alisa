@@ -23,7 +23,7 @@ class SignupFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'value="client"')
         self.assertContains(response, 'value="provider"')
-        self.assertContains(response, "Worker")
+        self.assertContains(response, "Prestator")
         self.assertContains(response, 'class="ff__label"', html=False)
         self.assertContains(response, "Confirma parola")
 
@@ -34,7 +34,7 @@ class SignupFlowTests(TestCase):
                 "username": "worker_user",
                 "email": "worker@example.com",
                 "first_name": "Test",
-                "last_name": "Worker",
+                "last_name": "Prestator",
                 "phone": "0700000000",
                 "city": "Chisinau",
                 "role": User.Roles.PROVIDER,

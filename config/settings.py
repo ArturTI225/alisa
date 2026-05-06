@@ -151,7 +151,7 @@ REST_FRAMEWORK = {
         "anon": "50/minute",
         "user": "200/minute",
         "help-requests": "20/minute",
-        "volunteer-applications": "30/minute",
+        "provider-applications": "30/minute",
         "chat": "60/minute",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

@@ -15,7 +15,7 @@ from chat.views import ChatMessageViewSet, ConversationViewSet
 from reviews.views import ReviewViewSet
 from services.views import ServiceCategoryViewSet, ServiceViewSet
 from ads.views import AdViewSet, OfferViewSet
-from bookings.views import HelpRequestViewSet, VolunteerApplicationViewSet
+from bookings.views import HelpRequestViewSet, ProviderApplicationViewSet
 
 app_name = "api"
 router = routers.DefaultRouter()
@@ -24,9 +24,9 @@ router.register("services", ServiceViewSet)
 router.register("bookings", BookingViewSet, basename="booking")
 router.register("help-requests", HelpRequestViewSet, basename="help-request")
 router.register(
-    "volunteer-applications",
-    VolunteerApplicationViewSet,
-    basename="volunteer-application",
+    "provider-applications",
+    ProviderApplicationViewSet,
+    basename="provider-application",
 )
 router.register("addresses", AddressViewSet, basename="address")
 router.register("favorite-services", FavoriteServiceViewSet, basename="favorite-service")

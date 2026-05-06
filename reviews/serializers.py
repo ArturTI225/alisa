@@ -87,7 +87,7 @@ class ReviewSerializer(serializers.ModelSerializer):
                 else help_request.created_by
             )
             if not other:
-                raise serializers.ValidationError("Nu exista voluntar asignat pentru aceasta cerere.")
+                raise serializers.ValidationError("Nu exista prestator asignat pentru aceasta cerere.")
             if to_user != other:
                 raise serializers.ValidationError("Review trebuie sa fie pentru cealalta parte.")
 

@@ -68,7 +68,7 @@ from .serializers import (
     RecurringRuleCreateSerializer,
     RecurringRuleSerializer,
     HelpRequestSerializer,
-    VolunteerApplicationSerializer,
+    ProviderApplicationSerializer,
     HelpRequestAttachmentSerializer,
 )
 from .utils import (
@@ -256,6 +256,11 @@ class BookingListView(LoginRequiredMixin, generic.ListView):
         )
         for help_request in help_requests:
             help_request.chat_conversation_id = conversation_map.get(help_request.id)
+            help_request.pending_applications_count = sum(
+                1
+                for application in help_request.applications.all()
+                if application.status == VolunteerApplication.Status.PENDING
+            )
         ctx["help_requests"] = help_requests
         ctx["request_total"] = len(ctx.get("bookings", [])) + len(help_requests)
         return ctx
@@ -675,7 +680,7 @@ class BookingDeclineView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate refuza.")
+            raise PermissionDenied("Doar prestatorul poate refuza.")
         if self.booking.provider not in [None, request.user]:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if self.booking.status not in [
@@ -707,7 +712,7 @@ class BookingDeclineView(LoginRequiredMixin, generic.FormView):
         )
         self.booking.add_event(
             BookingEvent.EventType.DECLINED,
-            "Cererea a fost refuzata de voluntar.",
+            "Cererea a fost refuzata de prestator.",
             actor=self.request.user,
             payload={"reason": self.booking.cancel_reason},
         )
@@ -721,7 +726,7 @@ class BookingAcceptView(LoginRequiredMixin, generic.View):
 
         booking = get_object_or_404(Booking, pk=pk)
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate accepta.")
+            raise PermissionDenied("Doar prestatorul poate accepta.")
         if booking.provider not in [None, request.user]:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status not in [
@@ -746,13 +751,13 @@ class BookingAcceptView(LoginRequiredMixin, generic.View):
         )
         booking.add_event(
             BookingEvent.EventType.ACCEPTED,
-            "Cererea a fost acceptata de voluntar.",
+            "Cererea a fost acceptata de prestator.",
             actor=request.user,
         )
 
         conversation = ensure_booking_conversation(booking)
         if conversation:
-            chat_text = "Voluntarul a acceptat cererea de ajutor."
+            chat_text = "Prestatorul a acceptat cererea de ajutor."
             ChatMessage.objects.create(
                 conversation=conversation,
                 booking=booking,
@@ -776,7 +781,7 @@ class BookingStartView(LoginRequiredMixin, generic.View):
     def post(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate incepe.")
+            raise PermissionDenied("Doar prestatorul poate incepe.")
         if booking.provider != request.user:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.CONFIRMED:
@@ -787,7 +792,7 @@ class BookingStartView(LoginRequiredMixin, generic.View):
         booking.save(update_fields=["status", "started_at", "updated_at"])
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Voluntarul a marcat cererea ca In curs.",
+            "Prestatorul a marcat cererea ca In curs.",
             actor=request.user,
         )
         messages.success(request, "Cererea este in curs.")
@@ -801,7 +806,7 @@ class BookingCompleteView(LoginRequiredMixin, generic.FormView):
     def dispatch(self, request, *args, **kwargs):
         self.booking = get_object_or_404(Booking, pk=kwargs["pk"])
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate finaliza.")
+            raise PermissionDenied("Doar prestatorul poate finaliza.")
         if self.booking.provider != request.user:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if self.booking.status != Booking.Status.IN_PROGRESS:
@@ -827,7 +832,7 @@ class BookingCompleteView(LoginRequiredMixin, generic.FormView):
         note = form.cleaned_data.get("note", "")
         self.booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Cererea a fost marcata ca finalizata de voluntar (in asteptare confirmare solicitant).",
+            "Cererea a fost marcata ca finalizata de prestator (in asteptare confirmare solicitant).",
             actor=self.request.user,
             payload={
                 "note": note,
@@ -962,7 +967,7 @@ class BookingResolveDisputeView(LoginRequiredMixin, generic.FormView):
         self.booking.save(update_fields=["status", "updated_at"])
         self.booking.add_event(
             BookingEvent.EventType.DISPUTE_RESOLVED,
-            "Voluntarul a rezolvat disputa.",
+            "Prestatorul a rezolvat disputa.",
             actor=self.request.user,
             payload={"note": note},
         )
@@ -1203,7 +1208,7 @@ class ProviderDashboardView(LoginRequiredMixin, generic.TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarii au acces la acest dashboard.")
+            raise PermissionDenied("Doar prestatorii au acces la acest dashboard.")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -1306,7 +1311,7 @@ class ProviderActivityCSVView(LoginRequiredMixin, View):
     def get(self, request):
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarii pot exporta rapoartele.")
+            raise PermissionDenied("Doar prestatorii pot exporta rapoartele.")
         start_param = request.GET.get("start")
         end_param = request.GET.get("end")
         try:
@@ -1740,10 +1745,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         if help_request.is_locked and not request.user.is_staff:
             raise PermissionDenied("Cererea este blocat? de admin.")
         if request.user not in [help_request.created_by] and not request.user.is_staff:
-            raise PermissionDenied("Nu po?i accepta aceast? aplica?ie.")
+            raise PermissionDenied("Nu poti accepta acest raspuns.")
         if application.status != VolunteerApplication.Status.PENDING:
             return Response(
-                {"detail": "Aplica?ie nu mai poate fi acceptat?."},
+                {"detail": "Raspunsul nu mai poate fi acceptat."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if help_request.status not in [
@@ -1759,7 +1764,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         ).exclude(pk=application.pk)
         if existing.exists():
             return Response(
-                {"detail": "ExistДѓ deja o aplicaИ›ie acceptatДѓ."},
+                {"detail": "Exista deja un raspuns acceptat."},
                 status=status.HTTP_409_CONFLICT,
             )
         VolunteerApplication.objects.filter(
@@ -1780,7 +1785,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         notify_user(
             user=application.volunteer,
             notif_type=None,
-            title="Aplica?ie acceptat?",
+            title="Raspuns acceptat",
             body=help_request.title,
             link=f"/help-requests/{help_request.pk}/",
         )
@@ -1803,7 +1808,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate refuza.")
+            raise PermissionDenied("Doar prestatorul poate refuza.")
         if booking.provider not in [None, user]:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status not in [
@@ -1834,7 +1839,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
         booking.add_event(
             BookingEvent.EventType.DECLINED,
-            "Cererea a fost refuzata de voluntar.",
+            "Cererea a fost refuzata de prestator.",
             actor=user,
             payload={"reason": reason},
         )
@@ -1847,7 +1852,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate incepe.")
+            raise PermissionDenied("Doar prestatorul poate incepe.")
         if booking.provider != user:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.CONFIRMED:
@@ -1860,7 +1865,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=["status", "started_at", "updated_at"])
         booking.add_event(
             BookingEvent.EventType.STATUS_CHANGED,
-            "Voluntarul a marcat cererea ca In curs.",
+            "Prestatorul a marcat cererea ca In curs.",
             actor=user,
         )
         return Response(
@@ -1872,7 +1877,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         user = request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarul poate finaliza.")
+            raise PermissionDenied("Doar prestatorul poate finaliza.")
         if booking.provider != user:
             raise PermissionDenied("Nu esti asignat la aceasta cerere.")
         if booking.status != Booking.Status.IN_PROGRESS:
@@ -2093,7 +2098,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             return HttpResponse(html)
 
 
-# --- HelpRequest & VolunteerApplication API (non-commercial core) ---
+# --- HelpRequest and response API ---
 
 
 class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
@@ -2110,7 +2115,7 @@ class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
             raise PermissionDenied("Cererea este blocatДѓ de admin.")
 
     def _auto_award_badges(self, profile, actor, request):
-        # simple thresholds to avoid monetization; extendable
+        # Simple activity thresholds for trust badges.
         thresholds = [1, 5, 10]
         for n in thresholds:
             name = f"Helper - {n} requests"
@@ -2245,7 +2250,7 @@ class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
         self._ensure_not_locked(help_request)
         if not help_request.matched_volunteer:
             return Response(
-                {"detail": "Cererea nu are voluntar atribuit."},
+                {"detail": "Cererea nu are prestator atribuit."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if help_request.status not in [
@@ -2442,14 +2447,14 @@ class HelpRequestViewSet(IdempotentMixin, viewsets.ModelViewSet):
         return Response(self.get_serializer(help_request).data)
 
 
-class VolunteerApplicationViewSet(viewsets.ModelViewSet):
+class ProviderApplicationViewSet(viewsets.ModelViewSet):
     queryset = VolunteerApplication.objects.select_related(
         "help_request", "volunteer", "help_request__created_by"
     )
-    serializer_class = VolunteerApplicationSerializer
+    serializer_class = ProviderApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [AnonRateThrottle, UserRateThrottle, ScopedRateThrottle]
-    throttle_scope = "volunteer-applications"
+    throttle_scope = "provider-applications"
 
     def get_queryset(self):
         user = self.request.user
@@ -2466,13 +2471,13 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         if not getattr(user, "is_provider", False):
-            raise PermissionDenied("Doar voluntarii pot aplica.")
+            raise PermissionDenied("Doar prestatorii pot raspunde.")
         help_request = serializer.validated_data["help_request"]
         if help_request.status not in [
             HelpRequest.Status.OPEN,
             HelpRequest.Status.IN_REVIEW,
         ]:
-            raise PermissionDenied("Cererea nu mai acceptДѓ aplicaИ›ii.")
+            raise PermissionDenied("Cererea nu mai accepta raspunsuri.")
         serializer.save(volunteer=user)
 
     @action(detail=True, methods=["post"])
@@ -2482,11 +2487,11 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         if application.help_request.is_locked and not request.user.is_staff:
             raise PermissionDenied("Cererea este blocat? de admin.")
         if application.volunteer != request.user:
-            raise PermissionDenied("Nu po?i retrage aceast? aplica?ie.")
+            raise PermissionDenied("Nu poti retrage acest raspuns.")
         if application.status == VolunteerApplication.Status.WITHDRAWN:
             return Response(self.get_serializer(application).data)
         if application.status != VolunteerApplication.Status.PENDING:
-            raise ConflictError("AplicaИ›ia nu mai poate fi retrasДѓ.")
+            raise ConflictError("Raspunsul nu mai poate fi retras.")
         application.status = VolunteerApplication.Status.WITHDRAWN
         application.save(update_fields=["status", "updated_at"])
         log_audit(
@@ -2507,12 +2512,12 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         if help_request.is_locked and not request.user.is_staff:
             raise PermissionDenied("Cererea este blocata de admin.")
         if request.user not in [help_request.created_by] and not request.user.is_staff:
-            raise PermissionDenied("Nu poti accepta aceasta aplicatie.")
+            raise PermissionDenied("Nu poti accepta acest raspuns.")
         if application.status == VolunteerApplication.Status.ACCEPTED:
             ensure_help_request_conversation(help_request)
             return Response(self.get_serializer(application).data, status=status.HTTP_200_OK)
         if application.status != VolunteerApplication.Status.PENDING:
-            raise ConflictError("Aplicatia nu mai poate fi acceptata.")
+            raise ConflictError("Raspunsul nu mai poate fi acceptat.")
         if help_request.status not in [
             HelpRequest.Status.OPEN,
             HelpRequest.Status.IN_REVIEW,
@@ -2537,7 +2542,7 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         notify_user(
             user=application.volunteer,
             notif_type=None,
-            title="Aplicatie acceptata",
+            title="Raspuns acceptat",
             body=help_request.title,
             link=f"/chat/{conversation.pk}/",
         )
@@ -2549,11 +2554,11 @@ class VolunteerApplicationViewSet(viewsets.ModelViewSet):
         application = self.get_object()
         help_request = application.help_request
         if request.user not in [help_request.created_by] and not request.user.is_staff:
-            raise PermissionDenied("Nu poИ›i respinge aceastДѓ aplicaИ›ie.")
+            raise PermissionDenied("Nu poti respinge acest raspuns.")
         if application.status == VolunteerApplication.Status.REJECTED:
             return Response(self.get_serializer(application).data, status=status.HTTP_200_OK)
         if application.status != VolunteerApplication.Status.PENDING:
-            raise ConflictError("AplicaИ›ia nu mai poate fi respinsДѓ.")
+            raise ConflictError("Raspunsul nu mai poate fi respins.")
         application.status = VolunteerApplication.Status.REJECTED
         application.save(update_fields=["status", "updated_at"])
         log_audit(

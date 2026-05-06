@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Panou voluntar{% endblock %}
+{% block title %}Panou prestator{% endblock %}
 {% block content %}
 <section class="section civic-screen">
     <header class="civic-view-header">
         <div>
-            <p class="civic-eyebrow">Voluntar · panou activ</p>
+            <p class="civic-eyebrow">Prestator · panou activ</p>
             <h1>Buna, {{ user.first_name|default:user.display_name }}.</h1>
-            <p class="muted">Vezi cererile deschise, aplica rapid si urmareste tot fluxul dintr-un singur loc.</p>
+            <p class="muted">Vezi cererile deschise, raspunde rapid si urmareste tot fluxul dintr-un singur loc.</p>
         </div>
     </header>
 
@@ -94,14 +94,14 @@
                     <span>{{ req.urgency }}</span>
                 </div>
                 {% if req.id in applied_request_ids %}
-                    <span class="chip chip-ghost">Ai aplicat deja</span>
+                    <span class="chip chip-ghost">Ai raspuns deja</span>
                 {% else %}
                     <form method="post" action="{% url 'pages:help_request_apply' req.id %}">
                         {% csrf_token %}
                         <label for="message_{{ req.id }}" class="label">Mesaj pentru solicitant (optional)</label>
                         <textarea id="message_{{ req.id }}" name="message" rows="2" placeholder="Pot incepe azi, am experienta pe acest domeniu."></textarea>
                         <div class="actions-row">
-                            <button class="btn-primary slim" type="submit">Aplica</button>
+                            <button class="btn-primary slim" type="submit">Raspunde</button>
                         </div>
                     </form>
                 {% endif %}
@@ -137,7 +137,7 @@
                     <span>{{ req.city|default:"-" }}{% if req.region %}, {{ req.region }}{% endif %}</span>
                 </div>
                 <div class="summary-row">
-                    <span class="label">Voluntar asignat</span>
+                    <span class="label">Prestator ales</span>
                     <span>{% if req.matched_volunteer %}{{ req.matched_volunteer.display_name }}{% else %}-{% endif %}</span>
                 </div>
                 {% if req.chat_conversation_id %}
@@ -147,7 +147,7 @@
                 {% endif %}
             </article>
         {% empty %}
-            {% include "components/_empty_state.html" with title="Nu ai cereri create de pe acest cont" body="Cand ai nevoie de ajutor pentru tine, le vezi aici separat de activitatea de voluntar." %}
+            {% include "components/_empty_state.html" with title="Nu ai cereri create de pe acest cont" body="Cand ai nevoie de ajutor pentru tine, le vezi aici separat de activitatea de prestator." %}
         {% endfor %}
     </div>
 </section>
@@ -155,7 +155,7 @@
 <section class="section">
     <header class="section-header">
         <div>
-            <div class="badge">Istoric voluntar</div>
+            <div class="badge">Istoric prestator</div>
             <h2>Ajutorul meu activ</h2>
         </div>
     </header>
@@ -212,7 +212,7 @@
 
     {% if applied_requests %}
         <div class="section card">
-            <h3>Aplicatii trimise (in asteptare)</h3>
+            <h3>Raspunsuri trimise (in asteptare)</h3>
             <div class="booking-grid"{% if applied_requests %} data-skeleton data-skeleton-duration="480"{% endif %}>
                 {% for req in applied_requests %}
                     <article class="booking-card">

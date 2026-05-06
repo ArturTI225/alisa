@@ -22,10 +22,10 @@
             <section class="section section-slim">
                 <header class="section-header">
                     <div>
-                        <div class="badge">Cereri comunitare</div>
-                        <h2>Publicate pentru voluntari</h2>
+                        <div class="badge">Cereri publicate</div>
+                        <h2>Raspunsuri de la prestatori</h2>
                     </div>
-                    <a class="btn-secondary" href="{% url 'pages:applications' %}">Aplicatii</a>
+                    <a class="btn-secondary" href="{% url 'pages:applications' %}">Raspunsuri</a>
                 </header>
                 <div class="booking-grid" data-skeleton data-skeleton-duration="520">
                     {% for req in help_requests %}
@@ -50,23 +50,54 @@
                                 <span>{{ req.created_by.display_name }}</span>
                             </div>
                             <div class="summary-row">
-                                <span class="label">Voluntar asignat</span>
+                                <span class="label">Prestator ales</span>
                                 <span>{% if req.matched_volunteer %}{{ req.matched_volunteer.display_name }}{% else %}-{% endif %}</span>
                             </div>
                             <div class="pill-row">
-                                <span class="chip chip-ghost">Aplicatii: {{ req.applications.all|length }}</span>
+                                <span class="chip chip-ghost">Raspunsuri: {{ req.applications.all|length }}</span>
+                                {% if req.pending_applications_count %}
+                                    <span class="chip chip-ghost">De ales: {{ req.pending_applications_count }}</span>
+                                {% endif %}
                                 <span class="chip chip-ghost">Actualizat: {{ req.updated_at|date:"d M H:i" }}</span>
                             </div>
+                            {% if req.created_by_id == user.id and req.pending_applications_count %}
+                                <div class="card-neo">
+                                    <strong>Prestatori care au raspuns</strong>
+                                    <div class="booking-grid">
+                                        {% for app in req.applications.all %}
+                                            {% if app.status == 'pending' %}
+                                                <div class="service-card glass">
+                                                    <div class="provider-head">
+                                                        {% include "components/_avatar.html" with user=app.volunteer %}
+                                                        <div>
+                                                            <h3>{{ app.volunteer.display_name }}</h3>
+                                                            <p class="muted">Rating {{ app.volunteer.rating_avg|default:"0.00" }} / 5 · {{ app.volunteer.rating_count }} recenzii</p>
+                                                        </div>
+                                                    </div>
+                                                    <p class="muted">{{ app.message|default:"Pot prelua aceasta cerere."|truncatechars:120 }}</p>
+                                                    <div class="actions-row">
+                                                        <form method="post" action="{% url 'pages:application_accept' app.id %}">
+                                                            {% csrf_token %}
+                                                            <button class="btn-primary slim" type="submit">Alege prestatorul</button>
+                                                        </form>
+                                                        <a class="btn-ghost slim" href="{% url 'accounts:provider_detail' app.volunteer.id %}">Profil</a>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
                             <div class="actions-row">
                                 {% if req.chat_conversation_id %}
                                     <a class="btn-secondary" href="{% url 'chat:conversation_detail' req.chat_conversation_id %}">Chat</a>
                                 {% endif %}
                                 {% if req.created_by_id == user.id %}
-                                    <a class="btn-ghost" href="{% url 'pages:applications' %}">Vezi voluntarii</a>
+                                    <a class="btn-ghost" href="{% url 'pages:applications' %}?request={{ req.id }}">Alege dintre prestatori</a>
                                 {% elif req.matched_volunteer_id == user.id %}
                                     <span class="chip status-{{ req.status }}">Ajutorul meu</span>
                                 {% else %}
-                                    <span class="chip chip-ghost">Aplicatie trimisa</span>
+                                    <span class="chip chip-ghost">Raspuns trimis</span>
                                 {% endif %}
                             </div>
                         </article>
@@ -87,7 +118,7 @@
                 <div class="filters-bar">
                     <div class="field">
                         <label for="booking-search" class="label">Cauta rapid</label>
-                        <input id="booking-search" type="search" placeholder="Ex: instalatie, voluntar, Strada Test 10">
+                        <input id="booking-search" type="search" placeholder="Ex: instalatie, prestator, Strada Test 10">
                     </div>
                     <div class="field">
                         <label for="booking-sort" class="label">Sortare</label>
@@ -128,7 +159,7 @@
                                 <span>{{ booking.client.display_name }}</span>
                             </div>
                             <div class="summary-row">
-                                <span class="label">Voluntar</span>
+                                <span class="label">Prestator</span>
                                 <span>{{ booking.provider|default:"-" }}
                                     {% if booking.status == 'reschedule_requested' %}<span class="chip chip-ghost">Reprogramare</span>{% endif %}
                                 </span>
@@ -170,8 +201,8 @@
                 </div>
                 <div class="flow-card glass-lite">
                     <div class="icon-circle">2</div>
-                    <h3>Voluntar asignat</h3>
-                    <p class="muted">Alegi sau primesti un voluntar disponibil.</p>
+                    <h3>Prestator ales</h3>
+                    <p class="muted">Alegi un prestator disponibil dintre cei care au raspuns.</p>
                 </div>
                 <div class="flow-card glass-lite">
                     <div class="icon-circle">3</div>

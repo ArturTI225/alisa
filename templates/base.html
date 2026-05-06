@@ -46,8 +46,8 @@
                 <div class="shell-nav__section">
                     <p class="shell-nav__label">Activitate</p>
                     <a href="{% url 'bookings:list' %}" class="shell-nav__item {% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}active{% endif %}" {% if '/bookings/' in request.path and '/bookings/new/' not in request.path and '/bookings/provider/dashboard/' not in request.path %}aria-current="page"{% endif %}>Cererile mele</a>
-                    {% if user.is_provider %}<a href="{% url 'bookings:provider_dashboard' %}" class="shell-nav__item {% if '/bookings/provider/dashboard/' in request.path %}active{% endif %}" {% if '/bookings/provider/dashboard/' in request.path %}aria-current="page"{% endif %}>Panou voluntar</a>{% endif %}
-                    <a href="{% url 'pages:applications' %}" class="shell-nav__item {% if '/applications/' in request.path %}active{% endif %}" {% if '/applications/' in request.path %}aria-current="page"{% endif %}>Aplicații</a>
+                    {% if user.is_provider %}<a href="{% url 'bookings:provider_dashboard' %}" class="shell-nav__item {% if '/bookings/provider/dashboard/' in request.path %}active{% endif %}" {% if '/bookings/provider/dashboard/' in request.path %}aria-current="page"{% endif %}>Panou prestator</a>{% endif %}
+                    <a href="{% url 'pages:applications' %}" class="shell-nav__item {% if '/applications/' in request.path %}active{% endif %}" {% if '/applications/' in request.path %}aria-current="page"{% endif %}>Raspunsuri</a>
                     <a href="{% url 'pages:reviews' %}" class="shell-nav__item {% if '/reviews/' in request.path %}active{% endif %}" {% if '/reviews/' in request.path %}aria-current="page"{% endif %}>Recenzii</a>
                     <a href="{% url 'chat:conversation_list' %}" class="shell-nav__item {% if '/chat/' in request.path %}active{% endif %}" {% if '/chat/' in request.path %}aria-current="page"{% endif %}>Mesaje</a>
                 </div>
@@ -206,9 +206,9 @@
                           <a href="{% url 'pages:applications' %}"
                               class="command-palette__item"
                               data-command-item
-                              data-command-label="aplicatii voluntari cereri primite">
-                                  <strong>Aplicații</strong>
-                                <span>Vezi cine a aplicat la cererile tale.</span>
+                              data-command-label="raspunsuri prestatori cereri primite">
+                                  <strong>Raspunsuri</strong>
+                                <span>Vezi prestatorii care au raspuns la cererile tale.</span>
                           </a>
                           <a href="{% url 'pages:reviews' %}"
                               class="command-palette__item"
@@ -235,9 +235,9 @@
                         <a href="{% url 'bookings:provider_dashboard' %}"
                            class="command-palette__item"
                            data-command-item
-                           data-command-label="panou voluntar provider dashboard">
-                            <strong>Panou voluntar</strong>
-                            <span>Vezi activitatea ta ca voluntar sau voluntar.</span>
+                           data-command-label="panou prestator provider dashboard">
+                            <strong>Panou prestator</strong>
+                            <span>Vezi activitatea ta ca prestator.</span>
                         </a>
                     {% endif %}
                 {% else %}

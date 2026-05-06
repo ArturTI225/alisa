@@ -96,11 +96,15 @@ class HelpRequestAdmin(admin.ModelAdmin):
         "city",
         "urgency",
         "status",
-        "matched_volunteer",
+        "assigned_master",
         "created_at",
     )
     list_filter = ("status", "urgency", "category", "city")
     search_fields = ("title", "description", "created_by__username")
+
+    @admin.display(description="Prestator ales", ordering="matched_volunteer")
+    def assigned_master(self, obj):
+        return obj.matched_volunteer
 
 
 @admin.register(HelpRequestAttachment)
@@ -110,19 +114,27 @@ class HelpRequestAttachmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(VolunteerApplication)
-class VolunteerApplicationAdmin(admin.ModelAdmin):
+class ProviderResponseAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "help_request",
-        "volunteer",
+        "master",
         "status",
         "created_at",
     )
     list_filter = ("status",)
     search_fields = ("help_request__id", "volunteer__username", "message")
 
+    @admin.display(description="Prestator", ordering="volunteer")
+    def master(self, obj):
+        return obj.volunteer
+
 
 @admin.register(CompletionCertificate)
 class CompletionCertificateAdmin(admin.ModelAdmin):
-    list_display = ("help_request", "volunteer", "issued_at")
+    list_display = ("help_request", "master", "issued_at")
     search_fields = ("help_request__id", "volunteer__username", "summary")
+
+    @admin.display(description="Prestator", ordering="volunteer")
+    def master(self, obj):
+        return obj.volunteer

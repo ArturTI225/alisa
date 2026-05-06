@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Dashboard voluntar{% endblock %}
+{% block title %}Dashboard prestator{% endblock %}
 {% block content %}
 <div class="section card glass split-hero tight">
     <div>
-        <div class="badge">Dashboard voluntar</div>
+        <div class="badge">Dashboard prestator</div>
         <h1>Salut, {{ user.display_name }}</h1>
         <p class="muted">Vezi cererile disponibile, lucrarile asignate, disputele si seriile recurente.</p>
     </div>
     <div class="pill-row">
         <span class="chip chip-ghost">Gestionare rapida</span>
         <a class="btn-primary" href="{% url 'bookings:list' %}">Cererile mele</a>
-        <span class="chip chip-ghost">Voluntar verificat</span>
+        <span class="chip chip-ghost">Prestator verificat</span>
     </div>
 </div>
 
@@ -41,7 +41,7 @@
 
 <div class="section card glass">
     <div class="section-header">
-        <div><div class="badge">Cereri disponibile</div><h2>Pool nou pentru voluntari</h2></div>
+        <div><div class="badge">Cereri disponibile</div><h2>Pool nou pentru prestatori</h2></div>
     </div>
     <div class="booking-grid">
         {% for booking in available_bookings %}
@@ -101,14 +101,14 @@
                     <span>{{ req.get_urgency_display }}</span>
                 </div>
                 {% if req.id in applied_help_request_ids %}
-                    <span class="chip chip-ghost">Ai aplicat deja</span>
+                    <span class="chip chip-ghost">Ai raspuns deja</span>
                 {% else %}
                     <form method="post" action="{% url 'pages:help_request_apply' req.id %}">
                         {% csrf_token %}
                         <label for="dashboard_message_{{ req.id }}" class="label">Mesaj pentru solicitant (optional)</label>
                         <textarea id="dashboard_message_{{ req.id }}" name="message" rows="2" placeholder="Pot ajuta cu aceasta cerere."></textarea>
                         <div class="actions-row">
-                            <button class="btn-primary slim" type="submit">Aplica</button>
+                            <button class="btn-primary slim" type="submit">Raspunde</button>
                         </div>
                     </form>
                 {% endif %}

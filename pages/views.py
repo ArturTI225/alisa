@@ -298,7 +298,7 @@ class ClientHelpRequestCreateView(LoginRequiredMixin, View):
 class WorkerApplyHelpRequestView(LoginRequiredMixin, View):
     def post(self, request, pk, *args, **kwargs):
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar workerii pot aplica.")
+            raise PermissionDenied("Doar prestatorii pot raspunde.")
 
         help_request = get_object_or_404(
             HelpRequest.objects.select_related("created_by"),
@@ -306,13 +306,13 @@ class WorkerApplyHelpRequestView(LoginRequiredMixin, View):
             is_deleted=False,
         )
         if help_request.created_by_id == request.user.id:
-            messages.error(request, "Nu poti aplica la propria cerere.")
+            messages.error(request, "Nu poti raspunde la propria cerere.")
             return redirect(request.META.get("HTTP_REFERER") or "pages:home")
         if help_request.status not in [
             HelpRequest.Status.OPEN,
             HelpRequest.Status.IN_REVIEW,
         ]:
-            messages.error(request, "Cererea nu mai accepta aplicatii.")
+            messages.error(request, "Cererea nu mai accepta raspunsuri.")
             return redirect(request.META.get("HTTP_REFERER") or "pages:home")
 
         message_text = (request.POST.get("message") or "").strip()
@@ -325,8 +325,8 @@ class WorkerApplyHelpRequestView(LoginRequiredMixin, View):
             notify_user(
                 user=help_request.created_by,
                 notif_type=Notification.Type.NEW_BID,
-                title="Aplicatie noua",
-                body=f"{request.user.display_name} a aplicat la cererea ta.",
+                title="Raspuns nou",
+                body=f"{request.user.display_name} a raspuns la cererea ta.",
                 link="/",
             )
             log_audit(
@@ -336,9 +336,9 @@ class WorkerApplyHelpRequestView(LoginRequiredMixin, View):
                 {"help_request": help_request.id},
                 request=request,
             )
-            messages.success(request, "Ai aplicat la lucrare.")
+            messages.success(request, "Ai raspuns la cerere.")
         else:
-            messages.info(request, "Ai aplicat deja la aceasta cerere.")
+            messages.info(request, "Ai raspuns deja la aceasta cerere.")
         return redirect(request.META.get("HTTP_REFERER") or "pages:home")
 
 
@@ -353,16 +353,16 @@ class ClientAcceptApplicationView(LoginRequiredMixin, View):
         )
         help_request = application.help_request
         if request.user not in [help_request.created_by] and not request.user.is_staff:
-            raise PermissionDenied("Nu poti accepta aceasta aplicatie.")
+            raise PermissionDenied("Nu poti accepta acest raspuns.")
         if help_request.is_locked and not request.user.is_staff:
             messages.error(request, "Cererea este blocata de admin.")
             return redirect("pages:home")
         if application.status == VolunteerApplication.Status.ACCEPTED:
             conversation = ensure_help_request_conversation(help_request)
-            messages.info(request, "Aplicatia era deja acceptata.")
+            messages.info(request, "Raspunsul era deja acceptat.")
             return redirect("chat:conversation_detail", pk=conversation.pk)
         if application.status != VolunteerApplication.Status.PENDING:
-            messages.error(request, "Aplicatia nu mai poate fi acceptata.")
+            messages.error(request, "Raspunsul nu mai poate fi acceptat.")
             return redirect("pages:home")
         if help_request.status not in [
             HelpRequest.Status.OPEN,
@@ -396,7 +396,7 @@ class ClientAcceptApplicationView(LoginRequiredMixin, View):
         notify_user(
             user=application.volunteer,
             notif_type=Notification.Type.BID_ACCEPTED,
-            title="Aplicatie acceptata",
+            title="Raspuns acceptat",
             body=help_request.title,
             link=f"/chat/{conversation.pk}/",
         )
@@ -407,7 +407,7 @@ class ClientAcceptApplicationView(LoginRequiredMixin, View):
             {"help_request": help_request.id, "conversation": conversation.id},
             request=request,
         )
-        messages.success(request, "Worker-ul a fost acceptat. Discutati in chat.")
+        messages.success(request, "Prestatorul a fost ales. Discutati in chat.")
         return redirect("chat:conversation_detail", pk=conversation.pk)
 
 
@@ -415,7 +415,7 @@ class WorkerStartHelpRequestView(LoginRequiredMixin, View):
     @transaction.atomic
     def post(self, request, pk, *args, **kwargs):
         if not getattr(request.user, "is_provider", False):
-            raise PermissionDenied("Doar workerii pot porni lucrarea.")
+            raise PermissionDenied("Doar prestatorii pot porni lucrarea.")
 
         help_request = get_object_or_404(
             HelpRequest.objects.select_related("created_by"),
@@ -468,14 +468,33 @@ class ApplicationsView(LoginRequiredMixin, generic.TemplateView):
         user = self.request.user
 
         if getattr(user, "is_client", False):
-            app_qs = (
-                VolunteerApplication.objects.filter(
-                    help_request__created_by=user,
-                    help_request__is_deleted=False,
-                )
-                .select_related("volunteer", "help_request", "help_request__category")
-                .order_by("-created_at")
+            client_requests = list(
+                HelpRequest.objects.filter(created_by=user, is_deleted=False)
+                .select_related("category", "matched_volunteer")
+                .prefetch_related("applications")
+                .order_by("-updated_at", "-created_at")
             )
+            selected_request = None
+            selected_request_id = self.request.GET.get("request")
+            if selected_request_id:
+                selected_request = next(
+                    (
+                        help_request
+                        for help_request in client_requests
+                        if str(help_request.id) == str(selected_request_id)
+                    ),
+                    None,
+                )
+
+            app_qs = VolunteerApplication.objects.filter(
+                help_request__created_by=user,
+                help_request__is_deleted=False,
+            )
+            if selected_request:
+                app_qs = app_qs.filter(help_request=selected_request)
+            app_qs = app_qs.select_related(
+                "volunteer", "help_request", "help_request__category"
+            ).order_by("-created_at")
             apps = list(app_qs)
             request_ids = [app.help_request_id for app in apps]
             conversation_map = dict(
@@ -501,6 +520,8 @@ class ApplicationsView(LoginRequiredMixin, generic.TemplateView):
             ctx.update(
                 {
                     "applications": apps,
+                    "client_requests": client_requests,
+                    "selected_request": selected_request,
                     "selected_application": selected,
                     "is_client_view": True,
                     "applications_count": len(apps),

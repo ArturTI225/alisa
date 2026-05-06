@@ -306,8 +306,8 @@ class HelpRequestAttachmentSerializer(serializers.ModelSerializer):
         return value
 
 
-class VolunteerApplicationSerializer(serializers.ModelSerializer):
-    volunteer = UserSerializer(read_only=True)
+class ProviderApplicationSerializer(serializers.ModelSerializer):
+    provider = UserSerializer(read_only=True, source="volunteer")
     help_request = serializers.PrimaryKeyRelatedField(
         queryset=HelpRequest.objects.all(), write_only=True
     )
@@ -316,20 +316,20 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
         model = VolunteerApplication
         fields = [
             "id",
-            "volunteer",
+            "provider",
             "help_request",
             "message",
             "status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "volunteer", "status", "created_at", "updated_at"]
+        read_only_fields = ["id", "provider", "status", "created_at", "updated_at"]
 
 
 class HelpRequestSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
-    matched_volunteer = UserSerializer(read_only=True)
-    applications = VolunteerApplicationSerializer(many=True, read_only=True)
+    matched_provider = UserSerializer(read_only=True, source="matched_volunteer")
+    applications = ProviderApplicationSerializer(many=True, read_only=True)
     attachments = serializers.SerializerMethodField()
     category = ServiceCategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
@@ -350,7 +350,7 @@ class HelpRequestSerializer(serializers.ModelSerializer):
             "region",
             "urgency",
             "status",
-            "matched_volunteer",
+            "matched_provider",
             "accepted_at",
             "started_at",
             "completed_at",
@@ -366,7 +366,7 @@ class HelpRequestSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "status",
-            "matched_volunteer",
+            "matched_provider",
             "accepted_at",
             "started_at",
             "completed_at",

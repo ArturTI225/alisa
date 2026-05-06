@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Aplicații{% endblock %}
+{% block title %}Raspunsuri{% endblock %}
 {% block content %}
 <section class="section civic-screen applications-screen">
     {% if is_client_view %}
@@ -7,24 +7,34 @@
             <div>
                 <p class="civic-eyebrow">
                     {% if selected_application %}
-                        Cererea ta · CR-{{ selected_application.help_request.id }} · deschisă {{ selected_application.help_request.created_at|date:"l" }}
+                        Cererea ta · CR-{{ selected_application.help_request.id }} · deschisa {{ selected_application.help_request.created_at|date:"l" }}
+                    {% elif selected_request %}
+                        Cererea ta · CR-{{ selected_request.id }} · raspunsuri primite
                     {% else %}
-                        Cererea ta · aplicații primite
+                        Cererea ta · raspunsuri primite
                     {% endif %}
                 </p>
-                <h1>{{ applications_count }} voluntari vor să te ajute</h1>
-                <p class="muted applications-screen__intro">Poți să te uiți pe rând, fără grabă. Când găsești pe cineva potrivit, apeși <strong>Da, vreau să mă ajute</strong>.</p>
+                <h1>{{ applications_count }} prestatori au raspuns</h1>
+                <p class="muted applications-screen__intro">Alege prestatorul potrivit dintre cei care au raspuns la cererea ta. Poti vedea ratingul, mesajul si profilul inainte de confirmare.</p>
             </div>
         </header>
 
         <div class="applications-layout">
             <div>
-                <p class="applications-list__label">Voluntarii care au răspuns ({{ applications|length }})</p>
+                {% if client_requests %}
+                    <div class="pill-row">
+                        <a class="chip {% if not selected_request %}active{% else %}chip-ghost{% endif %}" href="{% url 'pages:applications' %}">Toate</a>
+                        {% for request_item in client_requests %}
+                            <a class="chip {% if selected_request and selected_request.id == request_item.id %}active{% else %}chip-ghost{% endif %}" href="{% url 'pages:applications' %}?request={{ request_item.id }}">#{{ request_item.id }}</a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="applications-list__label">Prestatorii care au raspuns ({{ applications|length }})</p>
                 {% if applications %}
                     <div class="applications-list__body">
                         {% for app in applications %}
                             <a class="applications-item {% if selected_application and selected_application.id == app.id %}active{% endif %}"
-                               href="{% url 'pages:applications' %}?a={{ app.id }}"
+                               href="{% url 'pages:applications' %}?request={{ app.help_request.id }}&a={{ app.id }}"
                                {% if selected_application and selected_application.id == app.id %}aria-current="page"{% endif %}>
                                 <div class="avatar applications-item__avatar">{{ app.volunteer.display_name|first|upper }}</div>
                                 <div>
@@ -41,7 +51,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    {% include "components/_empty_state.html" with title="Încă nu ai aplicații" body="După publicare, voluntarii apar aici." cta_label="Publică cerere" cta_href="/" %}
+                    {% include "components/_empty_state.html" with title="Inca nu ai raspunsuri" body="Dupa publicare, prestatorii care raspund apar aici." cta_label="Publica cerere" cta_href="/" %}
                 {% endif %}
             </div>
 
@@ -51,7 +61,7 @@
                         <div class="avatar applications-panel__avatar">{{ selected_application.volunteer.display_name|first|upper }}</div>
                         <div>
                             <h2>{{ selected_application.volunteer.display_name }}</h2>
-                            <p class="muted applications-panel__lead">⭐ {{ selected_application.volunteer.rating_avg|default:"0" }} din 5 stele, pe baza a <strong>{{ selected_application.volunteer.rating_count }}</strong> recenzii. Cerere în <strong>{{ selected_application.help_request.city|default:"zona ta" }}</strong>.</p>
+                            <p class="muted applications-panel__lead">Rating {{ selected_application.volunteer.rating_avg|default:"0" }} din 5, pe baza a <strong>{{ selected_application.volunteer.rating_count }}</strong> recenzii. Cerere in <strong>{{ selected_application.help_request.city|default:"zona ta" }}</strong>.</p>
                             <div class="pill-row">
                                 <span class="chip chip-ghost">✓ Profil verificat</span>
                                 <span class="chip chip-ghost">{{ selected_application.help_request.category.name }}</span>
@@ -61,12 +71,12 @@
 
                     <div class="applications-quote">
                         <p class="civic-eyebrow">Ce spune {{ selected_application.volunteer.display_name|truncatechars:14 }}</p>
-                        <p class="serif">"{{ selected_application.message|default:'Vreau să te ajut cu această cerere. Putem discuta toate detaliile înainte de confirmare.' }}"</p>
+                        <p class="serif">"{{ selected_application.message|default:'Pot prelua aceasta cerere. Putem discuta toate detaliile inainte de confirmare.' }}"</p>
                     </div>
 
                     <div class="applications-verify">
-                        <h3>Este verificat cu act de identitate</h3>
-                        <p>Contul este verificat în platformă. Poți confirma în siguranță și poți discuta detalii în chat înainte de acceptare.</p>
+                        <h3>Profil verificat</h3>
+                        <p>Contul este verificat in platforma. Verifica ratingul si profilul inainte sa alegi prestatorul pentru cererea ta.</p>
                     </div>
 
                     <dl class="applications-meta">
@@ -75,7 +85,7 @@
                             <span>#{{ selected_application.help_request.id }}</span>
                         </div>
                         <div class="summary-row">
-                            <span class="label">Status aplicație</span>
+                            <span class="label">Status raspuns</span>
                             <span>{{ selected_application.get_status_display }}</span>
                         </div>
                         <div class="summary-row">
@@ -88,27 +98,28 @@
                         {% if selected_application.status == 'pending' %}
                             <form method="post" action="{% url 'pages:application_accept' selected_application.id %}">
                                 {% csrf_token %}
-                                <button class="btn-primary" type="submit">✓ Da, vreau să mă ajute</button>
+                                <button class="btn-primary" type="submit">Alege acest prestator</button>
                             </form>
                         {% endif %}
+                        <a class="btn-secondary" href="{% url 'accounts:provider_detail' selected_application.volunteer.id %}">Vezi profilul</a>
                         {% if selected_application.chat_conversation_id %}
-                            <a class="btn-secondary" href="{% url 'chat:conversation_detail' selected_application.chat_conversation_id %}">Vreau să-i scriu întâi</a>
+                            <a class="btn-secondary" href="{% url 'chat:conversation_detail' selected_application.chat_conversation_id %}">Scrie mesaj</a>
                         {% endif %}
-                        <a class="btn-ghost" href="{% url 'bookings:list' %}">Mă uit mai târziu</a>
+                        <a class="btn-ghost" href="{% url 'bookings:list' %}">Ma uit mai tarziu</a>
                     </div>
 
-                    <p class="applications-panel__note"><strong>Nu te grăbi.</strong> Nimeni nu vine la tine fără confirmarea ta.</p>
+                    <p class="applications-panel__note"><strong>Alegerea este la tine.</strong> Prestatorul este asignat doar dupa confirmarea ta.</p>
                 {% else %}
-                    {% include "components/_empty_state.html" with title="Alege o aplicație" body="Selectează din lista din stânga pentru detalii." %}
+                    {% include "components/_empty_state.html" with title="Alege un raspuns" body="Selecteaza din lista din stanga pentru detalii." %}
                 {% endif %}
             </aside>
         </div>
     {% else %}
         <header class="civic-view-header">
             <div>
-                <p class="civic-eyebrow">Aplicații trimise</p>
-                <h1>Aplicațiile tale</h1>
-                <p class="muted">Aici vezi unde ai aplicat și ce status are fiecare cerere.</p>
+                <p class="civic-eyebrow">Raspunsuri trimise</p>
+                <h1>Raspunsurile tale</h1>
+                <p class="muted">Aici vezi unde ai raspuns si ce status are fiecare cerere.</p>
             </div>
         </header>
 
@@ -125,13 +136,13 @@
                         <span>{{ app.help_request.category.name }}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="label">Trimisă la</span>
+                        <span class="label">Trimis la</span>
                         <span>{{ app.created_at|date:"d M Y H:i" }}</span>
                     </div>
-                    <p>{{ app.message|default:"Fără mesaj" }}</p>
+                    <p>{{ app.message|default:"Fara mesaj" }}</p>
                 </article>
             {% empty %}
-                {% include "components/_empty_state.html" with title="Nu ai aplicații trimise" body="Când aplici la o cerere, statusul apare aici." cta_label="Înapoi acasă" cta_href="/" %}
+                {% include "components/_empty_state.html" with title="Nu ai raspunsuri trimise" body="Cand raspunzi la o cerere, statusul apare aici." cta_label="Inapoi acasa" cta_href="/" %}
             {% endfor %}
         </div>
     {% endif %}

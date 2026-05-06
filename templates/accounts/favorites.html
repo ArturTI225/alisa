@@ -4,8 +4,8 @@
 <div class="section card glass split-hero tight">
     <div>
         <div class="badge">Colectia ta</div>
-        <h1>Servicii si voluntari salvati</h1>
-        <p class="muted">Revino rapid la serviciile preferate sau la voluntarii de incredere.</p>
+        <h1>Servicii si prestatori salvati</h1>
+        <p class="muted">Revino rapid la serviciile preferate sau la prestatorii de incredere.</p>
         <div class="pill-row">
             <span class="chip chip-ghost">Shortlist personal</span>
             <span class="chip chip-ghost">Cerere rapida</span>
@@ -13,7 +13,7 @@
     </div>
     <div class="glass-lite" style="padding:14px;border-radius:14px;">
         <div class="badge-soft">Total servicii: {{ favorite_services|length }}</div>
-        <div class="badge-soft">Total voluntari: {{ favorite_providers|length }}</div>
+        <div class="badge-soft">Total prestatori: {{ favorite_providers|length }}</div>
     </div>
     <div class="actions-row">
         <a class="btn-primary" href="/services/">Adauga servicii</a>
@@ -48,7 +48,7 @@
 
     <div class="section-header">
         <div>
-            <div class="badge">Voluntari</div>
+            <div class="badge">Prestatori</div>
             <h2>Preferinte</h2>
         </div>
     </div>
@@ -67,7 +67,7 @@
                 </div>
             </div>
         {% empty %}
-            {% include "components/_empty_state.html" with title="Niciun voluntar favorit" body="Salveaza persoanele la care vrei sa revii. Le gasesti aici oricand." cta_label="Cauta voluntari" cta_href="/" %}
+            {% include "components/_empty_state.html" with title="Niciun prestator favorit" body="Salveaza persoanele la care vrei sa revii. Le gasesti aici oricand." cta_label="Cauta prestatori" cta_href="/" %}
         {% endfor %}
     </div>
 </div>

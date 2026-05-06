@@ -60,7 +60,7 @@ def _build_breadcrumbs(request):
             ("Finalizare", None),
         ]
     elif view_name == "bookings:provider_dashboard":
-        trail = [("Panou voluntar", None)]
+        trail = [("Panou prestator", None)]
     elif view_name == "bookings:disputes_list":
         trail = [("Dispute", None)]
     elif view_name == "chat:conversation_list":

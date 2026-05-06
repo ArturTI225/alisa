@@ -117,6 +117,55 @@ class RoleBasedHomeTests(TestCase):
         help_request.refresh_from_db()
         self.assertEqual(help_request.status, HelpRequest.Status.IN_PROGRESS)
 
+    def test_client_can_filter_responses_by_help_request(self):
+        other_worker = User.objects.create_user(
+            username="worker_home_2",
+            password="pass123",
+            role=User.Roles.PROVIDER,
+        )
+        selected_request = HelpRequest.objects.create(
+            created_by=self.client_user,
+            title="Cerere selectata",
+            description="Am nevoie de ajutor la usa.",
+            category=self.category,
+            city="Chisinau",
+            urgency=HelpRequest.Urgency.MEDIUM,
+            status=HelpRequest.Status.OPEN,
+            status_history=[],
+        )
+        other_request = HelpRequest.objects.create(
+            created_by=self.client_user,
+            title="Alta cerere",
+            description="Am nevoie de ajutor la geam.",
+            category=self.category,
+            city="Chisinau",
+            urgency=HelpRequest.Urgency.MEDIUM,
+            status=HelpRequest.Status.OPEN,
+            status_history=[],
+        )
+        VolunteerApplication.objects.create(
+            help_request=selected_request,
+            volunteer=self.worker,
+            status=VolunteerApplication.Status.PENDING,
+            message="Pot veni in 30 minute.",
+        )
+        VolunteerApplication.objects.create(
+            help_request=other_request,
+            volunteer=other_worker,
+            status=VolunteerApplication.Status.PENDING,
+            message="Pot veni maine.",
+        )
+
+        self.client.login(username="client_home", password="pass123")
+        response = self.client.get(
+            f"{reverse('pages:applications')}?request={selected_request.id}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_request"], selected_request)
+        self.assertContains(response, "Pot veni in 30 minute.")
+        self.assertNotContains(response, "Pot veni maine.")
+
     def test_worker_dashboard_shows_own_client_requests(self):
         own_request = HelpRequest.objects.create(
             created_by=self.worker,
